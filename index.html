@@ -1,1821 +1,664 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PostHog Outbound Playbook — by Pierre Vernier</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pierre Vernier · PostHog BDR Application</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #151412;
+  --bg2: #1c1a17;
+  --bg3: #232018;
+  --surface: #282420;
+  --surface2: #322e28;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text: #f0ede6;
+  --text2: #b0aa9e;
+  --text3: #6a6560;
+  --accent: #f54b00;
+  --accent2: #ff7043;
+  --accent3: #ffd25a;
+  --green: #3ecf8e;
+  --blue: #60a5fa;
+  --tag-bg: rgba(245,75,0,0.1);
+  --tag-border: rgba(245,75,0,0.28);
+  --mono: 'Space Mono', monospace;
+  --sans: 'Syne', sans-serif;
+  --r: 10px;
+  --r-lg: 18px;
+}
+[data-theme="light"] {
+  --bg: #faf8f4;
+  --bg2: #f2efe8;
+  --bg3: #e9e5dc;
+  --surface: #ffffff;
+  --surface2: #f5f1e8;
+  --border: rgba(0,0,0,0.07);
+  --border2: rgba(0,0,0,0.13);
+  --text: #1a1714;
+  --text2: #4a4540;
+  --text3: #8a857e;
+  --tag-bg: rgba(245,75,0,0.07);
+  --tag-border: rgba(245,75,0,0.22);
+}
 
-        :root {
-            --bg-dark: #1D1F27;
-            --bg-darker: #15171E;
-            --bg-card: #2C2E38;
-            --bg-card-hover: #35373F;
-            --posthog-orange: #F54E00;
-            --posthog-blue: #6E8CF9;
-            --posthog-yellow: #F9BD2B;
-            --posthog-purple: #987CB0;
-            --text-primary: #EEEFE9;
-            --text-secondary: #B0B2A8;
-            --text-muted: #7A7C72;
-            --border: #3A3C44;
-            --success: #30C460;
-            --danger: #E5484D;
-            --nav-bg: rgba(29, 31, 39, 0.92);
-            --shadow: rgba(0,0,0,.35);
-        }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='24'%3E%F0%9F%A6%94%3C/text%3E%3C/svg%3E") 4 28,auto;}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);line-height:1.6;overflow-x:hidden;transition:background .3s,color .3s;}
 
-        body[data-theme="light"] {
-            --bg-dark: #F7F2E8;
-            --bg-darker: #EEE5D5;
-            --bg-card: #FFF9EE;
-            --bg-card-hover: #F6EBD8;
-            --text-primary: #252018;
-            --text-secondary: #5D574E;
-            --text-muted: #8B8173;
-            --border: #DED0BB;
-            --nav-bg: rgba(247, 242, 232, 0.92);
-            --shadow: rgba(83,55,24,.16);
-        }
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;height:56px;background:var(--bg);border-bottom:1px solid var(--border);backdrop-filter:blur(14px);}
+.nav-logo{font-family:var(--mono);font-size:.76rem;color:var(--accent);text-decoration:none;display:flex;align-items:center;gap:.4rem;letter-spacing:.04em;flex-shrink:0;}
+.nav-links{display:flex;gap:.1rem;list-style:none;}
+.nav-links a{font-family:var(--mono);font-size:.68rem;color:var(--text2);text-decoration:none;padding:.28rem .6rem;border-radius:6px;transition:color .2s,background .2s;letter-spacing:.03em;white-space:nowrap;}
+.nav-links a:hover{color:var(--text);background:var(--surface);}
+.theme-btn{background:var(--surface);border:1px solid var(--border);color:var(--text2);border-radius:7px;padding:.28rem .55rem;font-size:.85rem;cursor:pointer;transition:all .2s;flex-shrink:0;}
+.theme-btn:hover{color:var(--text);border-color:var(--border2);}
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html { scroll-behavior: smooth; }
-        body {
-            font-family: 'Inter', -apple-system, system-ui, sans-serif;
-            background: var(--bg-dark);
-            color: var(--text-primary);
-            line-height: 1.6;
-            overflow-x: hidden;
-            transition: background 0.25s ease, color 0.25s ease;
-        }
-        @media (hover: hover) and (pointer: fine) {
-            body, body * { cursor: none !important; }
-        }
+/* LAYOUT */
+main{padding-top:56px;}
+section{padding:5rem 1.5rem;}
+.container{max-width:1080px;margin:0 auto;}
+section:nth-child(even){background:var(--bg2);}
 
-        /* ── Navigation ── */
-        nav {
-            position: fixed; top: 0; width: 100%;
-            background: var(--nav-bg);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--border);
-            z-index: 100; padding: 0 2rem;
-        }
-        .nav-inner {
-            max-width: 1200px; margin: 0 auto;
-            display: flex; align-items: center; justify-content: space-between; height: 64px;
-        }
-        .logo { font-weight: 800; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem; }
-        .logo-hog { font-size: 1.4rem; }
-        .nav-links { display: flex; gap: 1.5rem; list-style: none; }
-        .nav-links a {
-            color: var(--text-secondary); text-decoration: none;
-            font-size: 0.85rem; font-weight: 500; transition: color 0.2s;
-        }
-        .nav-links a:hover { color: var(--posthog-orange); }
-        .nav-links a.active { color: var(--posthog-orange); }
-        .theme-toggle {
-            width: 40px; height: 40px; border-radius: 999px; border: 1px solid var(--border);
-            background: var(--bg-card); color: var(--text-primary); cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1rem; transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
-        }
-        .theme-toggle:hover { transform: translateY(-1px) rotate(-8deg); border-color: var(--posthog-orange); }
-        .scroll-progress {
-            position: fixed; top: 64px; left: 0; right: 0; height: 3px; z-index: 99;
-            background: rgba(122,124,114,.25);
-        }
-        .scroll-progress-bar {
-            width: 0%; height: 100%;
-            background: linear-gradient(90deg, var(--posthog-orange), var(--posthog-yellow), var(--posthog-blue));
-            transition: width 0.08s linear;
-        }
-        .chapter-rail {
-            position: fixed; right: 1rem; top: 50%; transform: translateY(-50%);
-            z-index: 90; display: flex; flex-direction: column; gap: 0.55rem;
-        }
-        .chapter-dot {
-            width: 10px; height: 10px; border-radius: 50%;
-            border: 1px solid var(--border); background: var(--bg-card);
-            box-shadow: 0 4px 12px var(--shadow); transition: all 0.2s ease;
-        }
-        .chapter-dot.active {
-            height: 26px; border-radius: 999px; background: var(--posthog-orange);
-            border-color: var(--posthog-orange);
-        }
-        .mascot {
-            position: fixed; right: 1.1rem; bottom: 1.1rem; z-index: 110;
-            display: flex; align-items: end; gap: 0.6rem; pointer-events: none;
-            transform: translateY(90px); opacity: 0; transition: transform 0.3s ease, opacity 0.3s ease;
-        }
-        .mascot.visible { transform: translateY(0); opacity: 1; }
-        .mascot-bubble {
-            max-width: 230px; background: var(--bg-card); color: var(--text-secondary);
-            border: 1px solid var(--border); border-radius: 10px; padding: 0.7rem 0.85rem;
-            font-size: 0.78rem; line-height: 1.4; box-shadow: 0 12px 32px var(--shadow);
-        }
-        .mascot-hog {
-            width: 52px; height: 52px; display: grid; place-items: center;
-            background: var(--posthog-orange); border-radius: 14px; font-size: 1.8rem;
-            box-shadow: 0 12px 32px rgba(245,78,0,.32); transition: transform 0.25s ease;
-        }
-        body[data-theme="light"] .mascot-hog { transform: rotateY(180deg); }
-        .hog-cursor {
-            position: fixed; left: 0; top: 0; z-index: 9999; pointer-events: none;
-            width: 34px; height: 34px; display: grid; place-items: center;
-            font-size: 1.55rem; transform: translate(-50%, -50%);
-            filter: drop-shadow(0 8px 14px rgba(0,0,0,.28));
-            opacity: 0; transition: opacity 0.18s ease, scale 0.16s ease, rotate 0.16s ease;
-        }
-        .hog-cursor.visible { opacity: 1; }
-        .hog-cursor.clicking { scale: 0.82; rotate: -12deg; }
-        .hog-cursor.pointing { scale: 1.16; rotate: 10deg; }
+/* LABELS & HEADLINES */
+.label{font-family:var(--mono);font-size:.68rem;color:var(--accent);letter-spacing:.12em;text-transform:uppercase;margin-bottom:1.1rem;display:flex;align-items:center;gap:.5rem;}
+.label::before{content:'';display:block;width:16px;height:1px;background:var(--accent);}
+.sh{font-family:var(--sans);font-size:clamp(1.5rem,3vw,2.3rem);font-weight:800;line-height:1.13;margin-bottom:1.2rem;letter-spacing:-.025em;}
+.intro{font-size:.95rem;color:var(--text2);max-width:660px;line-height:1.78;margin-bottom:2.2rem;}
 
-        /* ── Shared ── */
-        .page { max-width: 1200px; margin: 0 auto; padding: 5rem 2rem; border-top: 1px solid var(--border); }
-        .page:first-of-type { border-top: none; }
-        .label {
-            font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
-            letter-spacing: 0.1em; color: var(--posthog-orange); margin-bottom: 0.5rem;
-        }
-        .page-title {
-            font-size: clamp(1.6rem, 3.5vw, 2.5rem); font-weight: 800;
-            margin-bottom: 0.75rem; letter-spacing: -0.02em;
-        }
-        .page-sub { font-size: 1.05rem; color: var(--text-secondary); max-width: 740px; margin-bottom: 2.5rem; }
+/* HERO */
+#hero{min-height:calc(100vh - 56px);display:flex;align-items:center;position:relative;overflow:hidden;padding:4rem 1.5rem 5rem;border-bottom:1px solid var(--border);}
+.hero-bg{position:absolute;inset:0;background:radial-gradient(ellipse 70% 60% at 75% 45%,rgba(245,75,0,.07) 0%,transparent 70%),radial-gradient(ellipse 50% 40% at 20% 80%,rgba(255,210,90,.04) 0%,transparent 60%);pointer-events:none;}
+.hero-inner{display:grid;grid-template-columns:1fr auto;gap:2.5rem;align-items:start;position:relative;z-index:1;width:100%;max-width:1080px;margin:0 auto;}
+.badge{display:inline-flex;align-items:center;gap:.45rem;font-family:var(--mono);font-size:.68rem;color:var(--accent);background:var(--tag-bg);border:1px solid var(--tag-border);border-radius:20px;padding:.3rem .75rem;margin-bottom:1.3rem;letter-spacing:.05em;}
+h1{font-family:var(--sans);font-size:clamp(1.8rem,4vw,3.1rem);font-weight:800;line-height:1.09;letter-spacing:-.03em;margin-bottom:1.3rem;}
+h1 em{font-style:normal;color:var(--accent);}
+.hero-sub{font-size:1rem;color:var(--text2);max-width:580px;line-height:1.75;margin-bottom:.7rem;}
+.hero-apply{font-size:.92rem;color:var(--text2);max-width:580px;line-height:1.7;margin-bottom:1.6rem;font-style:italic;}
+.hero-callout{background:var(--surface);border:1px solid var(--border2);border-left:3px solid var(--accent3);border-radius:var(--r);padding:.9rem 1.1rem;font-family:var(--mono);font-size:.71rem;color:var(--text2);line-height:1.65;max-width:540px;margin-bottom:1.8rem;}
+.proof-strip{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:2rem;}
+.proof-tag{font-family:var(--mono);font-size:.65rem;color:var(--green);background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.2);border-radius:4px;padding:.2rem .55rem;letter-spacing:.03em;}
+.cta{display:inline-flex;align-items:center;gap:.45rem;background:var(--accent);color:#fff;font-family:var(--mono);font-size:.82rem;font-weight:700;padding:.7rem 1.4rem;border-radius:8px;text-decoration:none;letter-spacing:.04em;transition:all .2s;}
+.cta:hover{background:var(--accent2);transform:translateY(-2px);box-shadow:0 8px 24px rgba(245,75,0,.3);}
 
-        /* hypothesis callout */
-        .hypothesis {
-            background: rgba(249,189,43,.08); border: 1px solid rgba(249,189,43,.25);
-            border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 2rem;
-            font-size: 0.88rem; color: var(--posthog-yellow);
-        }
-        .hypothesis strong { color: var(--posthog-yellow); }
+/* MASCOT */
+.mascot-panel{display:flex;flex-direction:column;align-items:center;gap:.7rem;flex-shrink:0;}
+.hog{font-size:5.5rem;animation:float 4s ease-in-out infinite;filter:drop-shadow(0 8px 18px rgba(245,75,0,.18));line-height:1;}
+@keyframes float{0%,100%{transform:translateY(0) rotate(-3deg);}50%{transform:translateY(-10px) rotate(2deg);}}
+.bubble{background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:.65rem .9rem;font-family:var(--mono);font-size:.68rem;color:var(--text2);text-align:center;max-width:190px;line-height:1.5;position:relative;}
+.bubble::before{content:'';position:absolute;top:-7px;left:50%;transform:translateX(-50%);border:6px solid transparent;border-bottom-color:var(--border2);}
+.bubble::after{content:'';position:absolute;top:-5px;left:50%;transform:translateX(-50%);border:5px solid transparent;border-bottom-color:var(--surface);}
 
-        /* tags */
-        .tag {
-            display: inline-block; padding: 0.15rem 0.55rem; border-radius: 6px;
-            font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
-        }
-        .tag-orange  { background: rgba(245,78,0,.15); color: var(--posthog-orange); }
-        .tag-blue    { background: rgba(110,140,249,.15); color: var(--posthog-blue); }
-        .tag-green   { background: rgba(48,196,96,.15); color: var(--success); }
-        .tag-purple  { background: rgba(152,124,176,.15); color: var(--posthog-purple); }
-        .tag-yellow  { background: rgba(249,189,43,.15); color: var(--posthog-yellow); }
-        .tag-red     { background: rgba(229,72,77,.15); color: var(--danger); }
+/* ROLE BLOCK */
+.role-block{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-lg);padding:2rem 2.2rem;max-width:760px;margin-bottom:2rem;}
+.role-block-title{font-family:var(--sans);font-size:1rem;font-weight:700;margin-bottom:.7rem;}
+.role-block-body{font-size:.88rem;color:var(--text2);line-height:1.75;margin-bottom:1.1rem;}
+.role-proof{font-family:var(--mono);font-size:.73rem;color:var(--text2);line-height:1.7;border-top:1px solid var(--border);padding-top:1rem;}
 
-        /* cards */
-        .card {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 12px; padding: 1.75rem; transition: border-color 0.2s;
-        }
-        .card:hover { border-color: rgba(245,78,0,.4); }
-        .card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.5rem; }
-        .card p { color: var(--text-secondary); font-size: 0.9rem; }
-        .card-icon { font-size: 1.6rem; margin-bottom: 0.6rem; }
+/* CARDS */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.9rem;margin-bottom:1.8rem;}
+.grid-2{grid-template-columns:repeat(auto-fill,minmax(290px,1fr));}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.3rem;transition:border-color .2s,transform .2s,box-shadow .2s;position:relative;overflow:hidden;}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent3));opacity:0;transition:opacity .2s;}
+.card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.14);}
+.card:hover::before{opacity:1;}
+.ct{font-family:var(--sans);font-size:.88rem;font-weight:700;margin-bottom:.5rem;}
+.cb{font-size:.83rem;color:var(--text2);line-height:1.65;}
+.cn{font-family:var(--mono);font-size:.62rem;color:var(--accent);margin-bottom:.5rem;letter-spacing:.08em;}
 
-        /* tables */
-        .styled-table {
-            width: 100%; border-collapse: separate; border-spacing: 0;
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 12px; overflow: hidden; margin-bottom: 2rem;
-        }
-        .styled-table th {
-            background: rgba(21,23,30,.8); padding: 0.85rem 1.1rem; text-align: left;
-            font-weight: 700; font-size: 0.78rem; text-transform: uppercase;
-            letter-spacing: 0.05em; color: var(--text-secondary);
-            border-bottom: 1px solid var(--border);
-        }
-        .styled-table th:first-child { color: var(--posthog-orange); }
-        .styled-table td {
-            padding: 0.85rem 1.1rem; font-size: 0.88rem;
-            border-bottom: 1px solid var(--border); color: var(--text-secondary);
-        }
-        .styled-table tr:last-child td { border-bottom: none; }
-        .styled-table td:first-child { font-weight: 600; color: var(--text-primary); }
-        .check { color: var(--success); font-weight: bold; }
+/* CALLOUT */
+.callout{background:var(--surface);border:1px solid var(--border2);border-left:3px solid var(--accent3);border-radius:var(--r);padding:1.1rem 1.3rem;font-family:var(--mono);font-size:.75rem;color:var(--text2);line-height:1.7;margin:1.8rem 0 1rem;}
+.callout strong{color:var(--text);}
 
-        /* grids */
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }
-        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2rem; }
+/* MASCOT ROW */
+.mascot-row{display:flex;align-items:center;gap:.9rem;margin-top:1.8rem;}
+.hog-sm{font-size:2rem;flex-shrink:0;}
+.hog-quote{font-family:var(--mono);font-size:.72rem;color:var(--text3);font-style:italic;}
 
-        /* ── Hero ── */
-        .hero {
-            min-height: 100vh; display: flex; align-items: center; justify-content: center;
-            text-align: center; padding: 6rem 2rem 4rem; position: relative; overflow: hidden;
-        }
-        .hero::before {
-            content: ''; position: absolute; top: -200px; right: -200px;
-            width: 600px; height: 600px;
-            background: radial-gradient(circle, rgba(245,78,0,.12) 0%, transparent 70%);
-            pointer-events: none;
-        }
-        .hero::after {
-            content: ''; position: absolute; bottom: -150px; left: -150px;
-            width: 500px; height: 500px;
-            background: radial-gradient(circle, rgba(110,140,249,.08) 0%, transparent 70%);
-            pointer-events: none;
-        }
-        .hero-content { max-width: 820px; position: relative; z-index: 1; }
-        .hero-badge {
-            display: inline-flex; align-items: center; gap: 0.5rem;
-            background: rgba(245,78,0,.15); border: 1px solid rgba(245,78,0,.3);
-            color: var(--posthog-orange); padding: 0.4rem 1rem;
-            border-radius: 100px; font-size: 0.85rem; font-weight: 600; margin-bottom: 2rem;
-        }
-        .hero h1 {
-            font-size: clamp(2.2rem, 5.5vw, 4rem); font-weight: 900;
-            line-height: 1.1; margin-bottom: 1.5rem; letter-spacing: -0.03em;
-        }
-        .hero h1 .hl {
-            background: linear-gradient(135deg, var(--posthog-orange), var(--posthog-yellow));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-        }
-        .hero .hero-sub {
-            font-size: 1.15rem; color: var(--text-secondary); max-width: 640px; margin: 0 auto 2.5rem;
-        }
-        .hero-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 3rem; text-align: left; }
-        .hero-card {
-            background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
-            padding: 1.1rem; transition: border-color 0.2s;
-        }
-        .hero-card:hover { border-color: var(--posthog-orange); }
-        .hero-card h4 { font-size: 0.82rem; font-weight: 700; margin-bottom: 0.3rem; }
-        .hero-card p { font-size: 0.75rem; color: var(--text-secondary); line-height: 1.45; }
-        .btn-primary {
-            display: inline-flex; align-items: center; gap: 0.5rem;
-            background: var(--posthog-orange); color: white; padding: 0.85rem 2rem;
-            border-radius: 8px; font-weight: 700; font-size: 1rem;
-            text-decoration: none; transition: all 0.2s; border: none; cursor: pointer;
-        }
-        .btn-primary:hover {
-            background: #d94400; transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(245,78,0,.3);
-        }
+/* FLOW */
+.flow{display:flex;align-items:center;flex-wrap:wrap;gap:.4rem;margin:1.8rem 0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:1.3rem 1.5rem;}
+.fstep{font-family:var(--mono);font-size:.73rem;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:.35rem .75rem;white-space:nowrap;}
+.farrow{color:var(--accent);font-size:.9rem;flex-shrink:0;}
 
-        /* ── Decision tree ── */
-        .decision-tree {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 16px; padding: 2rem; position: relative; overflow: hidden;
-        }
-        .decision-tree::before {
-            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-            background: linear-gradient(90deg, var(--posthog-orange), var(--posthog-blue), var(--posthog-purple));
-        }
-        .dt-row {
-            display: grid; grid-template-columns: 1fr auto; gap: 1.5rem;
-            padding: 1rem 0; border-bottom: 1px solid var(--border); align-items: center;
-        }
-        .dt-row:last-child { border-bottom: none; }
-        .dt-question { font-size: 0.92rem; font-weight: 500; }
-        .dt-action { font-size: 0.85rem; font-weight: 600; }
+/* TWO-COL */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin:1.8rem 0;}
+.tc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.3rem;}
+.tc-title{font-family:var(--sans);font-size:.85rem;font-weight:700;margin-bottom:.9rem;display:flex;align-items:center;gap:.45rem;}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0;}
+.dot.r{background:var(--accent);}
+.tc ul{list-style:none;display:flex;flex-direction:column;gap:.4rem;}
+.tc li{font-family:var(--mono);font-size:.71rem;color:var(--text2);padding-left:.9rem;position:relative;line-height:1.5;}
+.tc li::before{content:'·';position:absolute;left:0;color:var(--text3);}
 
-        /* ── Philosophy do/don't ── */
-        .do-dont { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem; }
-        .do-list, .dont-list {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 12px; padding: 1.75rem;
-        }
-        .do-list h3, .dont-list h3 { font-size: 1rem; font-weight: 700; margin-bottom: 1rem; }
-        .do-list h3 { color: var(--success); }
-        .dont-list h3 { color: var(--danger); }
-        .do-list li, .dont-list li {
-            color: var(--text-secondary); font-size: 0.88rem;
-            margin-bottom: 0.6rem; list-style: none; padding-left: 1.4rem; position: relative;
-        }
-        .do-list li::before { content: '✓'; position: absolute; left: 0; color: var(--success); font-weight: bold; }
-        .dont-list li::before { content: '✗'; position: absolute; left: 0; color: var(--danger); font-weight: bold; }
+/* PHASE */
+.phase{border:1px solid var(--border);border-radius:var(--r-lg);padding:1.7rem;margin-bottom:1.1rem;background:var(--surface);position:relative;overflow:hidden;}
+.p-label{font-family:var(--mono);font-size:.66rem;color:var(--accent3);letter-spacing:.1em;margin-bottom:.5rem;}
+.p-title{font-family:var(--sans);font-size:1.05rem;font-weight:700;margin-bottom:.9rem;}
+.p-body{font-size:.85rem;color:var(--text2);line-height:1.72;margin-bottom:.9rem;}
+.p-caution{font-family:var(--mono);font-size:.7rem;color:var(--text3);border-top:1px solid var(--border);padding-top:.75rem;line-height:1.6;}
+.p-num{position:absolute;top:1.2rem;right:1.5rem;font-family:var(--mono);font-size:3.5rem;font-weight:700;color:var(--border2);line-height:1;pointer-events:none;user-select:none;}
 
-        /* ── Rules cards ── */
-        .rule-card {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 10px; padding: 1.25rem;
-        }
-        .rule-card h4 { font-size: 0.88rem; font-weight: 700; margin-bottom: 0.35rem; color: var(--posthog-orange); }
-        .rule-card p { font-size: 0.82rem; color: var(--text-secondary); }
+/* METRICS */
+.metrics{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.8rem;margin:2rem 0;}
+.metric{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:1rem;}
+.m-name{font-family:var(--mono);font-size:.67rem;color:var(--accent);letter-spacing:.06em;margin-bottom:.35rem;}
+.m-desc{font-size:.78rem;color:var(--text2);line-height:1.55;}
 
-        /* ── Phrases ── */
-        .phrase-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem; }
-        .phrase-block { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
-        .phrase-block h4 { font-size: 0.9rem; font-weight: 700; margin-bottom: 1rem; }
-        .phrase-item {
-            font-size: 0.85rem; padding: 0.5rem 0.75rem; border-radius: 6px; margin-bottom: 0.4rem;
-        }
-        .phrase-bad { background: rgba(229,72,77,.08); color: var(--danger); text-decoration: line-through; text-decoration-color: rgba(229,72,77,.4); }
-        .phrase-good { background: rgba(48,196,96,.08); color: var(--success); font-style: italic; }
+/* STARTING POINTS */
+.sp{border:1px solid var(--border);border-radius:var(--r-lg);padding:1.7rem;margin-bottom:1.1rem;background:var(--surface);}
+.sp-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1.1rem;}
+.sp-title{font-family:var(--sans);font-size:1.05rem;font-weight:700;}
+.sp-signal{font-family:var(--mono);font-size:.68rem;color:var(--text3);letter-spacing:.04em;margin-top:.3rem;line-height:1.5;}
+.sp-badge{font-family:var(--mono);font-size:.62rem;background:var(--tag-bg);border:1px solid var(--tag-border);color:var(--accent);border-radius:5px;padding:.2rem .55rem;white-space:nowrap;flex-shrink:0;}
+.sp-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.8rem;margin-top:1.1rem;}
+.sp-block{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:.9rem;}
+.sp-block-label{font-family:var(--mono);font-size:.62rem;color:var(--text3);letter-spacing:.08em;margin-bottom:.35rem;text-transform:uppercase;}
+.sp-block-body{font-size:.8rem;color:var(--text2);line-height:1.6;}
 
-        /* ── Signal taxonomy ── */
-        .signal-card {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 10px; padding: 1.3rem;
-        }
-        .signal-card h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 0.4rem; }
-        .signal-card p { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; }
-        .signal-card .signal-play { font-size: 0.72rem; color: var(--posthog-blue); font-weight: 600; margin-top: 0.5rem; }
+/* PROOF CARDS */
+.proof-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:.9rem;margin-bottom:2rem;}
+.proof-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.3rem;transition:border-color .2s;}
+.proof-card:hover{border-color:var(--border2);}
+.pc-icon{font-size:1.4rem;margin-bottom:.7rem;}
+.pc-title{font-family:var(--sans);font-size:.88rem;font-weight:700;margin-bottom:.55rem;}
+.pc-body{font-size:.8rem;color:var(--text2);line-height:1.65;}
 
-        /* ── Score calculator ── */
-        .score-calculator {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 16px; padding: 1.5rem; margin-top: 2rem; margin-bottom: 1rem;
-            display: grid; grid-template-columns: 1.35fr 0.8fr; gap: 1.5rem; position: relative; overflow: hidden;
-        }
-        .score-calculator::before {
-            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-            background: linear-gradient(90deg, var(--posthog-orange), var(--posthog-yellow), var(--success));
-        }
-        .score-input {
-            width: 100%; border: 1px solid var(--border); border-radius: 8px;
-            background: var(--bg-darker); color: var(--text-primary); padding: 0.8rem 0.9rem;
-            font: inherit; font-size: 0.92rem; margin: 0.75rem 0 1rem;
-        }
-        .score-presets, .score-signals { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-        .score-presets { margin-bottom: 1rem; }
-        .score-chip, .ab-toggle button {
-            border: 1px solid var(--border); background: var(--bg-darker); color: var(--text-secondary);
-            border-radius: 999px; padding: 0.42rem 0.72rem; font-size: 0.78rem; font-weight: 700;
-            cursor: pointer; transition: all 0.18s ease;
-        }
-        .score-chip:hover, .ab-toggle button:hover { border-color: var(--posthog-orange); color: var(--text-primary); }
-        .score-chip.active, .ab-toggle button.active {
-            background: rgba(245,78,0,.16); border-color: rgba(245,78,0,.55); color: var(--posthog-orange);
-        }
-        .score-chip.negative.active {
-            background: rgba(229,72,77,.12); border-color: rgba(229,72,77,.45); color: var(--danger);
-        }
-        .score-output {
-            background: var(--bg-darker); border: 1px solid var(--border); border-radius: 14px;
-            padding: 1.25rem; display: grid; align-content: center; gap: 1rem;
-        }
-        .score-orb {
-            width: 142px; height: 142px; border-radius: 50%; margin: 0 auto;
-            background: conic-gradient(var(--posthog-orange) 0deg, var(--border) 0deg);
-            display: grid; place-items: center; transition: background 0.35s ease;
-        }
-        .score-core {
-            width: 112px; height: 112px; border-radius: 50%; background: var(--bg-card);
-            display: grid; place-items: center; text-align: center; border: 1px solid var(--border);
-        }
-        .score-value { font-size: 2rem; font-weight: 900; line-height: 1; color: var(--text-primary); }
-        .score-label { font-size: 0.7rem; color: var(--text-muted); font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
-        .score-verdict { font-size: 0.95rem; font-weight: 800; color: var(--posthog-orange); text-align: center; }
-        .score-note { font-size: 0.82rem; color: var(--text-secondary); text-align: center; }
+/* FOOTER */
+footer{background:var(--bg);border-top:1px solid var(--border);padding:2.5rem 1.5rem;text-align:center;}
+.footer-inner{max-width:1080px;margin:0 auto;}
+.footer-hog{font-size:2.5rem;margin-bottom:.8rem;}
+.footer-text{font-family:var(--mono);font-size:.72rem;color:var(--text3);line-height:1.8;}
 
-        /* ── Persona cards ── */
-        .persona-card {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 12px; padding: 1.5rem; transition: border-color 0.2s;
-        }
-        .persona-card:hover { border-color: var(--posthog-blue); }
-        .persona-card h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.6rem; }
-        .persona-meta { font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
-        .persona-angle { font-size: 0.82rem; color: var(--posthog-blue); font-weight: 600; margin-bottom: 0.5rem; }
-        .persona-avoid { font-size: 0.78rem; color: var(--danger); }
-        .persona-question {
-            font-size: 0.82rem; color: var(--text-secondary); font-style: italic;
-            background: rgba(29,31,39,.6); padding: 0.7rem; border-radius: 8px;
-            border-left: 3px solid var(--posthog-orange); margin-top: 0.75rem;
-        }
+/* RESPONSIVE */
+@media(max-width:768px){
+  .nav-links{display:none;}
+  .hero-inner{grid-template-columns:1fr;}
+  .mascot-panel{display:none;}
+  .two-col{grid-template-columns:1fr;}
+  .sp-row{grid-template-columns:1fr;}
+  .proof-grid{grid-template-columns:1fr;}
+}
 
-        /* ── Pain messaging ── */
-        .pain-card {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 12px; padding: 1.75rem;
-        }
-        .pain-rank {
-            font-size: 0.7rem; font-weight: 800; color: var(--posthog-orange);
-            text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;
-        }
-        .pain-card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; }
-        .pain-lang {
-            font-size: 0.85rem; color: var(--text-secondary); font-style: italic;
-            margin-bottom: 0.6rem; padding-left: 0.75rem; border-left: 2px solid var(--posthog-purple);
-        }
-        .pain-proof { font-size: 0.8rem; color: var(--posthog-yellow); margin-bottom: 0.4rem; }
-        .pain-angle { font-size: 0.85rem; color: var(--text-secondary); }
-
-        /* ── Live Demo ── */
-        .demo-company {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 16px; padding: 2rem; margin-bottom: 2rem;
-            position: relative; overflow: hidden;
-        }
-        .demo-company::before {
-            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-            background: linear-gradient(90deg, var(--posthog-orange), var(--posthog-blue));
-        }
-        .demo-header {
-            display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;
-        }
-        .demo-logo {
-            width: 48px; height: 48px; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.5rem; font-weight: 900;
-        }
-        .demo-company-info h3 { font-size: 1.2rem; font-weight: 800; }
-        .demo-company-info p { font-size: 0.85rem; color: var(--text-secondary); }
-        .demo-grid {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;
-        }
-        .demo-block h4 {
-            font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
-            letter-spacing: 0.05em; color: var(--posthog-orange); margin-bottom: 0.5rem;
-        }
-        .demo-block p { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; }
-        .demo-block ul {
-            list-style: none; padding: 0;
-        }
-        .demo-block ul li {
-            font-size: 0.85rem; color: var(--text-secondary); padding: 0.3rem 0;
-            padding-left: 1.2rem; position: relative;
-        }
-        .demo-block ul li::before {
-            content: '→'; position: absolute; left: 0; color: var(--posthog-orange);
-        }
-        .demo-email {
-            background: var(--bg-darker); border: 1px solid var(--border);
-            border-radius: 12px; overflow: hidden;
-        }
-        .demo-email-header {
-            background: rgba(21,23,30,.8); padding: 0.85rem 1.25rem;
-            border-bottom: 1px solid var(--border);
-            display: flex; align-items: center; justify-content: space-between;
-        }
-        .demo-email-header h5 { font-size: 0.85rem; font-weight: 700; }
-        .demo-email-actions { display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap; justify-content: flex-end; }
-        .ab-toggle { display: inline-flex; gap: 0.25rem; padding: 0.2rem; background: var(--bg-darker); border: 1px solid var(--border); border-radius: 999px; }
-        .ab-toggle button { padding: 0.28rem 0.58rem; font-size: 0.72rem; border: none; }
-        .demo-email-body { padding: 1.25rem; }
-        .demo-email-subject {
-            font-size: 0.82rem; color: var(--posthog-yellow); font-weight: 600;
-            margin-bottom: 0.75rem;
-        }
-        .demo-email-text { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.7; }
-        .demo-score {
-            display: inline-flex; align-items: center; gap: 0.5rem;
-            background: rgba(48,196,96,.12); border: 1px solid rgba(48,196,96,.3);
-            color: var(--success); padding: 0.3rem 0.8rem; border-radius: 100px;
-            font-size: 0.78rem; font-weight: 700; margin-top: 1rem;
-        }
-
-        /* ── Campaign cards ── */
-        .campaign-card {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 14px; padding: 2rem; position: relative; overflow: hidden;
-        }
-        .campaign-card::before {
-            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-        }
-        .campaign-card.warm::before { background: var(--success); }
-        .campaign-card.warmish::before { background: var(--posthog-yellow); }
-        .campaign-card.cold::before { background: var(--posthog-blue); }
-        .campaign-priority {
-            font-size: 0.7rem; font-weight: 800; text-transform: uppercase;
-            letter-spacing: 0.08em; margin-bottom: 0.4rem;
-        }
-        .campaign-card h4 { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.75rem; }
-        .campaign-detail { margin-bottom: 0.6rem; }
-        .campaign-detail strong { font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
-        .campaign-detail p { font-size: 0.88rem; color: var(--text-secondary); }
-
-        /* ── Copy bank ── */
-        .email-template {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 14px; overflow: hidden; margin-bottom: 1.5rem;
-        }
-        .email-header {
-            background: rgba(21,23,30,.8); padding: 1rem 1.5rem;
-            border-bottom: 1px solid var(--border);
-            display: flex; align-items: center; justify-content: space-between;
-        }
-        .email-header h4 { font-size: 0.9rem; font-weight: 700; }
-        .email-body { padding: 1.5rem; }
-        .email-subject {
-            font-size: 0.85rem; color: var(--posthog-yellow); font-weight: 600;
-            margin-bottom: 1rem;
-        }
-        .email-text { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.7; }
-        .email-text .var {
-            background: rgba(245,78,0,.15); color: var(--posthog-orange);
-            padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.82rem; font-weight: 600;
-        }
-
-        /* ── Discovery ── */
-        .discovery-flow {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 16px; padding: 2.5rem; position: relative; overflow: hidden;
-        }
-        .discovery-flow::before {
-            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-            background: linear-gradient(90deg, var(--posthog-orange), var(--posthog-blue), var(--posthog-purple));
-        }
-        .flow-step {
-            position: relative; padding-left: 3rem; margin-bottom: 1.5rem;
-        }
-        .flow-step:last-child { margin-bottom: 0; }
-        .flow-num {
-            position: absolute; left: 0; top: 0;
-            width: 28px; height: 28px; border-radius: 50%;
-            background: var(--posthog-orange); color: white;
-            font-size: 0.75rem; font-weight: 800;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .flow-step h4 { font-size: 0.92rem; font-weight: 700; margin-bottom: 0.2rem; }
-        .flow-step p { font-size: 0.85rem; color: var(--text-secondary); }
-
-        /* ── Qualification ── */
-        .qual-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }
-        .qual-card {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 10px; padding: 1.3rem;
-        }
-        .qual-card h4 { font-size: 0.88rem; font-weight: 700; margin-bottom: 0.5rem; }
-        .qual-yes { font-size: 0.82rem; color: var(--success); margin-bottom: 0.3rem; }
-        .qual-no { font-size: 0.82rem; color: var(--danger); }
-
-        /* ── Disqual phrases ── */
-        .disqual-card {
-            background: rgba(29,31,39,.6); padding: 1rem; border-radius: 8px;
-            border-left: 3px solid var(--posthog-purple); margin-bottom: 0.75rem;
-            font-size: 0.88rem; color: var(--text-secondary); font-style: italic;
-        }
-
-        /* ── Roadmap ── */
-        .roadmap-track {
-            display: grid; grid-auto-flow: column; grid-auto-columns: minmax(260px, 1fr);
-            gap: 1rem; overflow-x: auto; padding: 0.25rem 0 1rem; margin-bottom: 3rem;
-            scroll-snap-type: x mandatory;
-        }
-        .roadmap-track::-webkit-scrollbar { height: 8px; }
-        .roadmap-track::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
-        .roadmap-item {
-            display: block; min-height: 210px; padding: 1.4rem;
-            background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
-            scroll-snap-align: start; position: relative; overflow: hidden;
-            opacity: 0.62; transform: translateY(10px); transition: all 0.35s ease;
-        }
-        .roadmap-item::before {
-            content: ''; position: absolute; inset: 0 auto auto 0; width: 100%; height: 3px;
-            background: linear-gradient(90deg, var(--posthog-orange), var(--posthog-yellow));
-            transform: scaleX(0); transform-origin: left; transition: transform 0.35s ease;
-        }
-        .roadmap-item.active, .roadmap-item:hover {
-            opacity: 1; transform: translateY(0); border-color: rgba(245,78,0,.55);
-            box-shadow: 0 18px 45px var(--shadow);
-        }
-        .roadmap-item.active::before, .roadmap-item:hover::before { transform: scaleX(1); }
-        .roadmap-time {
-            font-size: 0.85rem; font-weight: 800; color: var(--posthog-orange);
-            margin-bottom: 1rem;
-        }
-        .roadmap-content h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.4rem; }
-        .roadmap-content p { font-size: 0.88rem; color: var(--text-secondary); }
-
-        /* ── About Me ── */
-        .about-section {
-            border-top: 1px solid var(--border);
-            max-width: 1200px; margin: 0 auto; padding: 5rem 2rem;
-        }
-        .about-layout {
-            display: grid; grid-template-columns: 320px 1fr; gap: 3rem; align-items: start;
-        }
-        .about-image-wrap { position: sticky; top: 100px; }
-        .about-image-wrap img {
-            width: 100%; border-radius: 16px;
-            border: 2px solid var(--border);
-            box-shadow: 0 16px 48px rgba(0,0,0,.4);
-        }
-        .about-content .label { margin-bottom: 0.5rem; }
-        .about-content .page-title { margin-bottom: 1.5rem; }
-        .about-bio {
-            font-size: 1.05rem; color: var(--text-secondary); line-height: 1.75;
-            margin-bottom: 2rem;
-        }
-        .about-bio strong { color: var(--text-primary); font-weight: 700; }
-        .about-highlights {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem;
-        }
-        .about-stat {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 10px; padding: 1.25rem; text-align: center;
-        }
-        .about-stat-value {
-            font-size: 1.8rem; font-weight: 900;
-            background: linear-gradient(135deg, var(--posthog-orange), var(--posthog-yellow));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-        }
-        .about-stat-label { font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.15rem; }
-        .about-bridge {
-            font-size: 0.85rem; color: var(--text-muted); font-style: italic;
-            margin-bottom: 2rem; padding-left: 0.75rem; border-left: 2px solid var(--posthog-orange);
-        }
-        .about-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2rem; }
-        .about-tag {
-            background: var(--bg-card); border: 1px solid var(--border);
-            padding: 0.35rem 0.75rem; border-radius: 100px;
-            font-size: 0.78rem; font-weight: 600; color: var(--text-secondary);
-        }
-
-        @media (max-width: 900px) {
-            .about-layout { grid-template-columns: 1fr; }
-            .about-image-wrap { position: static; max-width: 280px; margin: 0 auto 2rem; }
-            .about-highlights { grid-template-columns: repeat(3, 1fr) !important; }
-        }
-        @media (max-width: 600px) {
-            .about-highlights { grid-template-columns: 1fr !important; }
-        }
-
-        footer {
-            text-align: center; padding: 2rem; border-top: 1px solid var(--border);
-            color: var(--text-muted); font-size: 0.82rem;
-        }
-        footer a { color: var(--posthog-orange); text-decoration: none; }
-
-        /* ── Responsive ── */
-        @media (max-width: 900px) {
-            .grid-2, .grid-3, .do-dont, .phrase-grid, .qual-grid, .demo-grid { grid-template-columns: 1fr; }
-            .score-calculator { grid-template-columns: 1fr; }
-            .hero-cards { grid-template-columns: 1fr 1fr; }
-            nav .nav-links { display: none; }
-            .chapter-rail { display: none; }
-            .mascot-bubble { display: none; }
-            .roadmap-track { grid-auto-columns: 82%; }
-            .hog-cursor { display: none; }
-        }
-        @media (max-width: 600px) {
-            .hero-cards { grid-template-columns: 1fr; }
-        }
-
-        /* ── Animations ── */
-        .fade-in { opacity: 0; transform: translateY(16px); transition: opacity 0.5s ease, transform 0.5s ease; }
-        .fade-in.visible { opacity: 1; transform: translateY(0); }
-
-        .page-number {
-            display: inline-block; background: var(--posthog-orange); color: white;
-            width: 24px; height: 24px; border-radius: 50%; text-align: center;
-            font-size: 0.72rem; font-weight: 800; line-height: 24px; margin-right: 0.5rem;
-        }
-    </style>
+/* SCROLL REVEAL */
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .55s,transform .55s;}
+.reveal.visible{opacity:1;transform:none;}
+</style>
 </head>
 <body>
 
-<!-- Navigation -->
 <nav>
-    <div class="nav-inner">
-        <div class="logo">
-            <span class="logo-hog">&#x1F994;</span>
-            PostHog Outbound Playbook
-        </div>
-        <ul class="nav-links">
-            <li><a href="#philosophy">Philosophy</a></li>
-            <li><a href="#icp">ICP & Signals</a></li>
-            <li><a href="#personas">Personas</a></li>
-            <li><a href="#demo">Live Demo</a></li>
-            <li><a href="#campaigns">Campaigns</a></li>
-            <li><a href="#discovery">Discovery</a></li>
-            <li><a href="#playbook">90-Day Playbook</a></li>
-            <li><a href="#about">About Me</a></li>
-        </ul>
-        <button class="theme-toggle" type="button" aria-label="Toggle dark and light mode" title="Toggle theme">☀</button>
-    </div>
+  <a class="nav-logo" href="#hero">🦔 Pierre Vernier</a>
+  <ul class="nav-links">
+    <li><a href="#product">Product</a></li>
+    <li><a href="#motion">Motion</a></li>
+    <li><a href="#execution">Execution</a></li>
+    <li><a href="#plays">Plays</a></li>
+    <li><a href="#days">90 Days</a></li>
+    <li><a href="#whyme">Why Me</a></li>
+  </ul>
+  <button class="theme-btn" onclick="toggleTheme()">☀️</button>
 </nav>
-<div class="scroll-progress" aria-hidden="true"><div class="scroll-progress-bar"></div></div>
-<div class="chapter-rail" aria-label="Reading progress">
-    <a class="chapter-dot" href="#philosophy" title="Philosophy"></a>
-    <a class="chapter-dot" href="#icp" title="ICP & Signals"></a>
-    <a class="chapter-dot" href="#personas" title="Personas"></a>
-    <a class="chapter-dot" href="#demo" title="Live Demo"></a>
-    <a class="chapter-dot" href="#campaigns" title="Campaigns"></a>
-    <a class="chapter-dot" href="#discovery" title="Discovery"></a>
-    <a class="chapter-dot" href="#playbook" title="90-Day Playbook"></a>
-    <a class="chapter-dot" href="#about" title="About Me"></a>
-</div>
-<div class="mascot" aria-hidden="true">
-    <div class="mascot-bubble">No signal, no sequence. I will be watching.</div>
-    <div class="mascot-hog">&#x1F994;</div>
-</div>
-<div class="hog-cursor" aria-hidden="true">&#x1F994;</div>
 
-<!-- ═══════════════════════════════════════════════════════ -->
+<main>
+
 <!-- HERO -->
-<!-- ═══════════════════════════════════════════════════════ -->
-<section class="hero" id="hero">
-    <div class="hero-content fade-in">
-        <div class="hero-badge">&#x1F994; BDR Application &mdash; Pierre Vernier</div>
-        <h1>
-            Outbound should feel like<br>
-            <span class="hl">useful product help,</span><br>
-            not a sales sequence.
-        </h1>
-        <p class="hero-sub">
-            This isn't a resume. It's the playbook I'd actually run at PostHog &mdash; with real companies, real signals, and real emails I'd send on day one. Tear it apart, steal what works, bin the rest.
-        </p>
-        <a href="#philosophy" class="btn-primary">Read the Playbook &darr;</a>
-
-        <div class="hero-cards">
-            <div class="hero-card">
-                <h4>&#x1F525; Warmbound First</h4>
-                <p>Start from product signals, not cold lists. Expand what's already working.</p>
-            </div>
-            <div class="hero-card">
-                <h4>&#x1F4E1; Signal or Silence</h4>
-                <p>No signal, no outbound. Every touch needs a reason to exist.</p>
-            </div>
-            <div class="hero-card">
-                <h4>&#x1F3AF; Live Prospecting</h4>
-                <p>Real companies. Real research. Real emails. Not template theatre.</p>
-            </div>
-            <div class="hero-card">
-                <h4>&#x274C; DQ Fast</h4>
-                <p>No pain, no impact, no timeline? Say so and move on.</p>
-            </div>
-        </div>
+<section id="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-inner">
+    <div>
+      <div class="badge">🦔 BDR application · GTM systems angle</div>
+      <h1>My thesis: PostHog outbound shouldn't become another <em>meeting machine.</em> It should be built on account understanding.</h1>
+      <p class="hero-sub">PostHog already has the foundations of signal-led outbound. The opportunity is to sharpen the loop: product and account signals, useful conversations, qualification, AE-qualified pipeline.</p>
+      <p class="hero-apply">I'm applying to run the BDR motion, learn from it, and help make it sharper.</p>
+      <div class="hero-callout">
+        ⚠️ Working from public information only. The first job would be to learn the actual Salesforce, ClickHouse, Clay and AE handoff data before scaling anything.
+      </div>
+      <div class="proof-strip">
+        <span class="proof-tag">#1 Global BDR</span>
+        <span class="proof-tag">152% quota</span>
+        <span class="proof-tag">$6.2M sourced pipeline</span>
+        <span class="proof-tag">Full-cycle AE</span>
+        <span class="proof-tag">Clay / GTM systems</span>
+      </div>
+      <a href="#product" class="cta">See the thinking ↓</a>
     </div>
+    <div class="mascot-panel">
+      <div class="hog">🦔</div>
+      <div class="bubble">Good outbound starts with context. The hedgehog is watching.</div>
+    </div>
+  </div>
 </section>
 
-<!-- ═══════════════════════════════════════════════════════ -->
-<!-- 1 — PHILOSOPHY -->
-<!-- ═══════════════════════════════════════════════════════ -->
-<div class="page fade-in" id="philosophy">
-    <div class="label"><span class="page-number">1</span> Outbound Philosophy</div>
-    <h2 class="page-title">If a product engineer would roll their eyes, don't send it</h2>
-    <p class="page-sub">
-        PostHog's buyers are technical. They read docs before taking demos. They'll Google you after your email.
-        Outbound has to earn credibility, not demand attention.
-    </p>
+<!-- ROLE BLOCK -->
+<section style="padding:3.5rem 1.5rem;">
+  <div class="container">
+    <div class="role-block reveal">
+      <div class="role-block-title">How this maps to the BDR role</div>
+      <div class="role-block-body">The job is not just to think about outbound. It is to do the work: research accounts, write relevant outreach, test channels, manage sequences, follow up properly, keep CRM clean, and turn useful conversations into AE-qualified pipeline.<br><br>My angle is simple: execute the BDR motion close to the ground, then help turn what works into a repeatable playbook.</div>
+      <div class="role-proof">I've already done the BDR work at enterprise level: #1 global BDR, 152% quota, $6.2M sourced pipeline, C-level outbound and MEDDIC-qualified handoffs. Since then: full-cycle AE, founder-led selling turned repeatable, BDR training, Clay, enrichment and AI workflows.</div>
+    </div>
+  </div>
+</section>
 
-    <div class="do-dont">
-        <div class="do-list">
-            <h3>&#10003; PostHog outbound is</h3>
-            <ul>
-                <li><strong>Signal-based</strong> &mdash; tied to a real trigger, not vague account fit</li>
-                <li><strong>Technical</strong> &mdash; written for people who build and ship products</li>
-                <li><strong>Transparent</strong> &mdash; the prospect knows exactly why you're reaching out</li>
-                <li><strong>Permission-based</strong> &mdash; earn the right to pitch, don't force a demo</li>
-                <li><strong>Brand-protective</strong> &mdash; increase respect even when they don't reply</li>
-                <li><strong>Disqualification-friendly</strong> &mdash; if PostHog isn't the answer, say so</li>
-            </ul>
-        </div>
-        <div class="dont-list">
-            <h3>&#10007; PostHog outbound is NOT</h3>
-            <ul>
-                <li>Generic SaaS sequences that could be about any product</li>
-                <li>"Just checking in" &mdash; the phrase that kills credibility</li>
-                <li>Fake flattery about their Series B or headcount growth</li>
-                <li>A procurement-first enterprise motion</li>
-                <li>Dragging self-serve accounts into sales cycles they don't need</li>
-                <li>Pitching before understanding stack, pain, and timing</li>
-            </ul>
-        </div>
+<!-- PRODUCT -->
+<section id="product">
+  <div class="container">
+    <div class="label reveal">01 · Product understanding</div>
+    <h2 class="sh reveal">PostHog is not just analytics. It's a Product OS for product engineers.</h2>
+    <p class="intro reveal">PostHog helps technical product teams understand usage, debug issues, test changes, roll out features, ask users questions, and keep product and customer data in one place. The buyer is not looking for a generic SaaS pitch. They want specific context, technical clarity, transparent pricing, and a real reason to spend time with sales.</p>
+    <div class="grid reveal">
+      <div class="card">
+        <div class="cn">01</div>
+        <div class="ct">Product engineers first</div>
+        <div class="cb">PostHog is built for people who want to try it, inspect docs, understand how things work, and solve product problems directly. That changes how outbound has to feel.</div>
+      </div>
+      <div class="card">
+        <div class="cn">02</div>
+        <div class="ct">More than a point solution</div>
+        <div class="cb">Product analytics shows what happens. Session replay and error tracking help explain why. Feature flags and experiments help teams act. Surveys, CDP and data warehouse add more context.</div>
+      </div>
+      <div class="card">
+        <div class="cn">03</div>
+        <div class="ct">Self-serve by default</div>
+        <div class="cb">Transparent usage-based pricing and generous free tiers mean sales has to earn its place. Not gatekeep access to the product.</div>
+      </div>
+      <div class="card">
+        <div class="cn">04</div>
+        <div class="ct">When sales becomes useful</div>
+        <div class="cb">Sales adds value when the account is evaluating multiple products, scaling usage, migrating from fragmented tools, expanding across teams, or trying to connect PostHog to a real business objective.</div>
+      </div>
+    </div>
+    <div class="mascot-row reveal">
+      <div class="hog-sm">🦔</div>
+      <div class="hog-quote">If this message could sell any analytics tool, bin it.</div>
+    </div>
+  </div>
+</section>
+
+<!-- OUTBOUND MOTION -->
+<section id="motion">
+  <div class="container">
+    <div class="label reveal">02 · Outbound motion</div>
+    <h2 class="sh reveal">The system already exists. The opportunity is to make the loop sharper.</h2>
+    <p class="intro reveal">From the public handbook: PostHog is not doing outbound to become a traditional enterprise-sales company. The goal is to build outbound early so it can scale intelligently before inbound slows down, without copying boring sales motions or damaging the brand.</p>
+    <div class="grid reveal">
+      <div class="card">
+        <div class="cn">01</div>
+        <div class="ct">Warm, warmish, cold</div>
+        <div class="cb">PostHog already thinks in levels of warmth: current users, engaged users, low/no-spend users, past signups, people who know PostHog, and people who don't yet.</div>
+      </div>
+      <div class="card">
+        <div class="cn">02</div>
+        <div class="ct">The BDR lane</div>
+        <div class="cb">The BDR opportunity is mostly the warmish lane: accounts with enough context to justify outreach, but not enough momentum to become inbound by themselves.</div>
+      </div>
+      <div class="card">
+        <div class="cn">03</div>
+        <div class="ct">The real goal</div>
+        <div class="cb">Not "get a meeting." Help the prospect decide whether PostHog solves a real problem. If it doesn't, disqualify or redirect. That's still a useful outcome.</div>
+      </div>
+      <div class="card">
+        <div class="cn">04</div>
+        <div class="ct">The data foundation</div>
+        <div class="cb">Salesforce, ClickHouse, Customer.io, Clay, Lemlist, Harmonic, product usage signals and job-switcher signals are already part of the motion.</div>
+      </div>
+    </div>
+    <div class="callout reveal">
+      I'd start where signal is strongest: warmish accounts, job switchers, product-led intent. But I'd also test colder high-ICP accounts when public context justifies a useful, non-generic approach.<br><br>
+      <strong>What I would not assume:</strong> that PostHog outbound is broken. <strong>What I would assume:</strong> there are opportunities to improve signal quality, account context, qualification notes, AE handoffs and feedback loops.
+    </div>
+    <div class="mascot-row reveal">
+      <div class="hog-sm">🦔</div>
+      <div class="hog-quote">They already built pipes. Don't show up with a bucket.</div>
+    </div>
+  </div>
+</section>
+
+<!-- EXECUTION (Account Intelligence + Where I'd Help merged) -->
+<section id="execution">
+  <div class="container">
+
+    <div class="label reveal">03 · Account intelligence</div>
+    <h2 class="sh reveal">Outbound should start with an account hypothesis, not a sequence.</h2>
+    <p class="intro reveal">PostHog's account planning framework asks the right questions: business model, product experience, hiring signals, stakeholders, current usage, underused products, risks and timing. I'd apply the same logic to outbound. Not a heavy account plan for every lead, just enough context to answer: why this account, why now, and why PostHog.</p>
+    <div class="grid grid-2 reveal">
+      <div class="card">
+        <div class="cn">01</div>
+        <div class="ct">Business context</div>
+        <div class="cb">How does this company make money? What stage are they at? What metrics probably matter: activation, retention, conversion, expansion?</div>
+      </div>
+      <div class="card">
+        <div class="cn">02</div>
+        <div class="ct">Product and hiring context</div>
+        <div class="cb">What does their product feel like? What roles are they hiring for: product, growth, data, experimentation, AI? What does that say about the next 12 months?</div>
+      </div>
+      <div class="card">
+        <div class="cn">03</div>
+        <div class="ct">PostHog context</div>
+        <div class="cb">Are they already using PostHog? Which products? How mature is the usage? Is there an underused product that maps to a real business objective?</div>
+      </div>
+      <div class="card">
+        <div class="cn">04</div>
+        <div class="ct">Stakeholder and timing context</div>
+        <div class="cb">Who owns the pain (product engineer, CTO, VP Product, founder)? Is there a launch, funding round, replatforming, or champion move that changes the timing?</div>
+      </div>
     </div>
 
-    <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 1rem;">Rules of engagement</h3>
-    <div class="grid-3">
-        <div class="rule-card">
-            <h4>No campaign without a signal</h4>
-            <p>Every touch ties to usage, job move, hiring, stack change, or product launch.</p>
+    <div style="margin-top:3.5rem;" class="reveal">
+      <div class="label">04 · Where I'd help</div>
+      <h3 class="sh" style="font-size:clamp(1.3rem,2.5vw,1.9rem);">Not replacing the motion. Improving the signal-to-pipeline loop.</h3>
+      <p class="intro" style="margin-bottom:1.5rem;">I've done the manual BDR work, moved into full-cycle AE work, then built GTM systems. That makes me useful at the layer between execution and system: what should be repeated, what should be automated, and what should stay human.</p>
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="cn">01</div>
+          <div class="ct">Daily BDR execution</div>
+          <div class="cb">Research high-quality accounts, write tailored emails, test LinkedIn, video, calls and gifts, run follow-ups, update CRM, track DQ reasons, and hand off clean opportunities to AEs.</div>
         </div>
-        <div class="rule-card">
-            <h4>Lead with a hypothesis</h4>
-            <p>"Usually this creates X" &mdash; not pretending you know their internal pain.</p>
+        <div class="card">
+          <div class="cn">02</div>
+          <div class="ct">Signal prioritization</div>
+          <div class="cb">Which signals create useful conversations and qualified pain, versus ones that just look good in a spreadsheet?</div>
         </div>
-        <div class="rule-card">
-            <h4>Ask permission before pitching</h4>
-            <p>"Would it be useful if I showed how teams solve this in PostHog?"</p>
+        <div class="card">
+          <div class="cn">03</div>
+          <div class="ct">Message relevance</div>
+          <div class="cb">Can the message feel useful to a technical buyer? Not like a sales sequence wearing a devtools hoodie.</div>
         </div>
-        <div class="rule-card">
-            <h4>Qualify before selling</h4>
-            <p>Pain + impact + timing + buyer path determine the next step. Period.</p>
+        <div class="card">
+          <div class="cn">04</div>
+          <div class="ct">AE handoff quality</div>
+          <div class="cb">Does the AE receive enough context: trigger, stack, pain, role, current workflow, next step, risks?</div>
         </div>
-        <div class="rule-card">
-            <h4>Respect self-serve</h4>
-            <p>If they're better off in docs, send them to docs. That's a win.</p>
+        <div class="card">
+          <div class="cn">05</div>
+          <div class="ct">Feedback loops</div>
+          <div class="cb">Are replies, DQ reasons, no-shows, AE acceptance and opportunity quality feeding back into scoring and play design?</div>
         </div>
-        <div class="rule-card">
-            <h4>Protect the brand</h4>
-            <p>Would this email still make PostHog look good if they screenshot it on Twitter?</p>
-        </div>
+      </div>
     </div>
 
-    <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 1rem;">Language guide</h3>
-    <div class="phrase-grid">
-        <div class="phrase-block">
-            <h4 style="color: var(--danger);">&#10007; Never say</h4>
-            <div class="phrase-item phrase-bad">unlock insights</div>
-            <div class="phrase-item phrase-bad">streamline workflows</div>
-            <div class="phrase-item phrase-bad">empower teams</div>
-            <div class="phrase-item phrase-bad">single pane of glass</div>
-            <div class="phrase-item phrase-bad">quick sync</div>
-            <div class="phrase-item phrase-bad">checking in / touching base</div>
-            <div class="phrase-item phrase-bad">revolutionize your analytics</div>
-        </div>
-        <div class="phrase-block">
-            <h4 style="color: var(--success);">&#10003; Say instead</h4>
-            <div class="phrase-item phrase-good">"Your product stack looks split across analytics, replay, and flags."</div>
-            <div class="phrase-item phrase-good">"If your team ships weekly but tests monthly, learning speed lags shipping speed."</div>
-            <div class="phrase-item phrase-good">"Funnels show the drop-off. Replay shows what confused the user."</div>
-            <div class="phrase-item phrase-good">"Internal feature flags are fine until maintaining them becomes its own roadmap."</div>
-        </div>
-    </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<!-- 2 — ICP & SIGNALS -->
-<!-- ═══════════════════════════════════════════════════════ -->
-<div class="page fade-in" id="icp">
-    <div class="label"><span class="page-number">2</span> ICP & Signal Strategy</div>
-    <h2 class="page-title">Who to target, what triggers outreach, and the start-here decision tree</h2>
-    <p class="page-sub">
-        Engineering-led B2B SaaS, devtools, AI products, and product-led companies where engineers influence buying and there's a credible path to meaningful spend.
-    </p>
-
-    <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 1.25rem;">Start-here decision tree</h3>
-    <div class="decision-tree" style="margin-bottom: 2.5rem;">
-        <div class="dt-row">
-            <div class="dt-question">Are they already using PostHog?</div>
-            <div class="dt-action"><span class="tag tag-green">Warmbound expansion play</span></div>
-        </div>
-        <div class="dt-row">
-            <div class="dt-question">Did someone who knows PostHog change jobs?</div>
-            <div class="dt-action"><span class="tag tag-yellow">Job-switcher play</span></div>
-        </div>
-        <div class="dt-row">
-            <div class="dt-question">Product, billing, website, event, or hiring intent?</div>
-            <div class="dt-action"><span class="tag tag-blue">Signal-based outreach</span></div>
-        </div>
-        <div class="dt-row">
-            <div class="dt-question">Strong ICP but not yet warm?</div>
-            <div class="dt-action"><span class="tag tag-purple">Cold play + pain hypothesis</span></div>
-        </div>
-        <div class="dt-row">
-            <div class="dt-question">No visible signal or trigger?</div>
-            <div class="dt-action"><span class="tag tag-red">Do not outbound yet</span></div>
-        </div>
+    <div class="callout reveal">
+      Things I would be careful not to do: automate final outreach without human review. Optimize for booked meetings instead of pipeline quality. Scale a play before replies show real problem agreement.
     </div>
 
-    <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 1rem;">Signal taxonomy &mdash; the triggers that justify outreach</h3>
-    <div class="grid-3">
-        <div class="signal-card">
-            <h4>&#x1F4CA; Product usage</h4>
-            <p>High event volume, multiple products active, new team members, billing triggers</p>
-            <div class="signal-play">&rarr; Warmbound expansion</div>
+    <div style="margin-top:3rem;" class="reveal">
+      <h3 class="sh" style="font-size:clamp(1.2rem,2.2vw,1.7rem);">The loop I'd work from</h3>
+      <div class="flow">
+        <span class="fstep">Signals</span>
+        <span class="farrow">→</span>
+        <span class="fstep">Account hypothesis</span>
+        <span class="farrow">→</span>
+        <span class="fstep">Useful conversation</span>
+        <span class="farrow">→</span>
+        <span class="fstep">Qualify / DQ</span>
+        <span class="farrow">→</span>
+        <span class="fstep">AE handoff or nurture</span>
+        <span class="farrow">→</span>
+        <span class="fstep">Learn</span>
+      </div>
+      <div class="two-col">
+        <div class="tc">
+          <div class="tc-title"><span class="dot"></span>Automation can help with</div>
+          <ul>
+            <li>Detecting product and account signals</li>
+            <li>Grouping accounts by motion</li>
+            <li>Preparing lightweight account briefs</li>
+            <li>Drafting hypotheses</li>
+            <li>Tracking DQ reasons</li>
+            <li>Keeping CRM tasks clean</li>
+          </ul>
         </div>
-        <div class="signal-card">
-            <h4>&#x1F4BC; Job switcher</h4>
-            <p>Former user/champion joins a new company</p>
-            <div class="signal-play">&rarr; Job-switcher outreach</div>
+        <div class="tc">
+          <div class="tc-title"><span class="dot r"></span>Humans must own</div>
+          <ul>
+            <li>Deciding whether the signal matters</li>
+            <li>Final message quality and tone</li>
+            <li>Qualification and disqualification</li>
+            <li>AE handoff judgment</li>
+            <li>Self-serve vs sales decision</li>
+            <li>What to scale, stop or change</li>
+          </ul>
         </div>
-        <div class="signal-card">
-            <h4>&#x1F310; Website intent</h4>
-            <p>Visits pricing, docs, comparison, security, or enterprise pages</p>
-            <div class="signal-play">&rarr; Intent follow-up</div>
-        </div>
-        <div class="signal-card">
-            <h4>&#x1F4DD; Hiring signal</h4>
-            <p>Product Engineer, Growth Engineer, Product Analyst, Experimentation Lead</p>
-            <div class="signal-play">&rarr; Signal-based cold</div>
-        </div>
-        <div class="signal-card">
-            <h4>&#x1F527; Tech stack</h4>
-            <p>Amplitude/Mixpanel + Segment + LaunchDarkly/Hotjar/BigQuery detected</p>
-            <div class="signal-play">&rarr; Fragmented stack play</div>
-        </div>
-        <div class="signal-card">
-            <h4>&#x1F4B5; Funding / growth</h4>
-            <p>Series A-C, fast engineering team growth, recent product launch</p>
-            <div class="signal-play">&rarr; ICP prioritization</div>
-        </div>
+      </div>
     </div>
 
-    <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 1rem;">Segment portfolio</h3>
-    <table class="styled-table" style="margin-bottom: 2.5rem;">
-        <thead>
-            <tr><th>#</th><th>Segment</th><th>Type</th><th>Primary pain</th></tr>
-        </thead>
-        <tbody>
-            <tr><td>1</td><td>Warmbound product-led accounts</td><td><span class="tag tag-green">Warm</span></td><td>Existing usage, under-expanded</td></tr>
-            <tr><td>2</td><td>Job switchers</td><td><span class="tag tag-yellow">Warmish</span></td><td>Known user evaluating tools at new company</td></tr>
-            <tr><td>3</td><td>High-intent technical audience</td><td><span class="tag tag-yellow">Warmish</span></td><td>Visible interest, no sales path yet</td></tr>
-            <tr><td>4</td><td>PLG DevTools &mdash; fragmented stack</td><td><span class="tag tag-blue">Cold</span></td><td>No trusted source of truth for product data</td></tr>
-            <tr><td>5</td><td>AI product teams shipping LLM features</td><td><span class="tag tag-blue">Cold</span></td><td>Shipping without understanding real user behavior</td></tr>
-            <tr><td>6</td><td>Growth-led SaaS &mdash; activation bottlenecks</td><td><span class="tag tag-blue">Cold</span></td><td>Weak attribution and activation visibility</td></tr>
-        </tbody>
-    </table>
-
-    <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 0.75rem;">Account scoring model</h3>
-    <div class="hypothesis">
-        <strong>&#x26A0; Hypothesis to validate:</strong> This scoring model is my starting point, not gospel. Weights should shift based on which signals actually convert to qualified meetings in the first 30 days. I'd run it in Clay and iterate weekly.
+    <div class="mascot-row reveal">
+      <div class="hog-sm">🦔</div>
+      <div class="hog-quote">Automate prep. Keep judgment weirdly human.</div>
     </div>
-    <table class="styled-table">
-        <thead><tr><th>Signal</th><th>Score</th></tr></thead>
-        <tbody>
-            <tr><td>Already using PostHog with meaningful activity</td><td class="check">+5</td></tr>
-            <tr><td>New products/team members or fast usage growth</td><td class="check">+4</td></tr>
-            <tr><td>Former PostHog user/champion at account</td><td class="check">+4</td></tr>
-            <tr><td>Uses 2+ relevant alternatives or point tools</td><td style="color: var(--posthog-yellow);">+3</td></tr>
-            <tr><td>Hiring product/growth/data/experimentation roles</td><td style="color: var(--posthog-yellow);">+3</td></tr>
-            <tr><td>PLG / self-serve / free tier / docs visible</td><td style="color: var(--posthog-yellow);">+3</td></tr>
-            <tr><td>Recent funding or strong headcount growth</td><td style="color: var(--text-secondary);">+2</td></tr>
-            <tr><td>No visible pain or trigger</td><td style="color: var(--danger);">-5</td></tr>
-            <tr><td>No buyer path / no engineering org</td><td style="color: var(--danger);">-5</td></tr>
-        </tbody>
-    </table>
+  </div>
+</section>
 
-    <div class="score-calculator" id="score-calculator">
+<!-- PLAYS -->
+<section id="plays">
+  <div class="container">
+    <div class="label reveal">05 · Plays</div>
+    <h2 class="sh reveal">Three places I'd start</h2>
+    <p class="intro reveal">I wouldn't try to rebuild outbound. I'd start inside the existing motion, close to the work, and test where account understanding improves pipeline quality.</p>
+
+    <div class="sp reveal">
+      <div class="sp-head">
         <div>
-            <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 0.35rem;">Prospecting score calculator</h3>
-            <p style="font-size: 0.88rem; color: var(--text-secondary);">Pick a preset or build the signal stack manually. The score updates live, like the Clay view I'd use before deciding whether to outbound.</p>
-            <input class="score-input" type="text" value="Raycast" aria-label="Company name" placeholder="Company name">
-            <div class="score-presets" aria-label="Company presets">
-                <button class="score-chip" type="button" data-preset="raycast">Raycast</button>
-                <button class="score-chip" type="button" data-preset="mintlify">Mintlify</button>
-                <button class="score-chip" type="button" data-preset="tonic">Tonic.ai</button>
-                <button class="score-chip" type="button" data-preset="blank">Start blank</button>
-            </div>
-            <div class="score-signals" aria-label="Scoring signals">
-                <button class="score-chip" type="button" data-score-signal="posthog" data-points="5">PostHog usage +5</button>
-                <button class="score-chip" type="button" data-score-signal="growth" data-points="4">Usage/team growth +4</button>
-                <button class="score-chip" type="button" data-score-signal="champion" data-points="4">Former champion +4</button>
-                <button class="score-chip" type="button" data-score-signal="stack" data-points="3">Fragmented stack +3</button>
-                <button class="score-chip" type="button" data-score-signal="hiring" data-points="3">Hiring relevant roles +3</button>
-                <button class="score-chip" type="button" data-score-signal="plg" data-points="3">PLG / docs / free tier +3</button>
-                <button class="score-chip" type="button" data-score-signal="funding" data-points="2">Funding / headcount +2</button>
-                <button class="score-chip" type="button" data-score-signal="surface" data-points="4">Complex product surface +4</button>
-                <button class="score-chip" type="button" data-score-signal="launch" data-points="3">New feature launch +3</button>
-                <button class="score-chip negative" type="button" data-score-signal="no-trigger" data-points="-5">No trigger -5</button>
-                <button class="score-chip negative" type="button" data-score-signal="no-buyer" data-points="-5">No buyer path -5</button>
-            </div>
+          <div class="sp-title">Warmish product-led accounts</div>
+          <div class="sp-signal">Signal: meaningful product engagement, low or no spend, signs of underused product potential</div>
         </div>
-        <div class="score-output">
-            <div class="score-orb">
-                <div class="score-core">
-                    <div>
-                        <div class="score-value">0</div>
-                        <div class="score-label">/ 30 ICP</div>
-                    </div>
-                </div>
-            </div>
-            <div>
-                <div class="score-verdict">Pick signals</div>
-                <div class="score-note">No score yet. The hedgehog remains suspicious.</div>
-            </div>
+        <div class="sp-badge">Play 01</div>
+      </div>
+      <p style="font-size:.85rem;color:var(--text2);line-height:1.7;margin-bottom:1rem;"><strong style="color:var(--text);">Working assumption:</strong> Some accounts may not need a sales call. They may need a better path to the next useful PostHog product, clearer context, or help connecting usage to a business objective.</p>
+      <div class="sp-row">
+        <div class="sp-block">
+          <div class="sp-block-label">Test</div>
+          <div class="sp-block-body">Does outreach work better when framed as product guidance rather than sales discovery?</div>
         </div>
-    </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<!-- 3 — PERSONAS & MESSAGING -->
-<!-- ═══════════════════════════════════════════════════════ -->
-<div class="page fade-in" id="personas">
-    <div class="label"><span class="page-number">3</span> Personas & Pain Messaging</div>
-    <h2 class="page-title">Know who you're talking to &mdash; and lead with their pain, not your pitch</h2>
-    <p class="page-sub">Each persona has different pain. The messaging library maps those pains to real PostHog customer proof points.</p>
-
-    <div class="grid-2" style="margin-bottom: 3rem;">
-        <div class="persona-card">
-            <h4>&#x1F4BB; Product Engineer</h4>
-            <div class="persona-meta"><strong>Cares about:</strong> Shipping, instrumentation, flags, experiments, debugging</div>
-            <div class="persona-meta"><strong>Pain:</strong> Context switching across analytics / replay / flags</div>
-            <div class="persona-angle">Best angle: One stack to understand, test, and ship</div>
-            <div class="persona-avoid">Avoid: Marketing analytics language</div>
-            <div class="persona-question">"When something underperforms, where do you go first: dashboard, replay, logs, or warehouse?"</div>
+        <div class="sp-block">
+          <div class="sp-block-label">Success</div>
+          <div class="sp-block-body">Product-relevant replies, better self-serve activation, trial momentum, AE-accepted opportunities with clear pain.</div>
         </div>
-        <div class="persona-card">
-            <h4>&#x1F4C8; Growth Engineer</h4>
-            <div class="persona-meta"><strong>Cares about:</strong> Activation, attribution, funnels, experiments</div>
-            <div class="persona-meta"><strong>Pain:</strong> Cannot connect source to activated/retained users</div>
-            <div class="persona-angle">Best angle: Acquisition + product behavior in one loop</div>
-            <div class="persona-avoid">Avoid: Generic lead-gen language</div>
-            <div class="persona-question">"Can you connect channel source to activated users without stitching GA4, warehouse, and product analytics?"</div>
+        <div class="sp-block">
+          <div class="sp-block-label">Stop if</div>
+          <div class="sp-block-body">Replies show no clear pain, no urgency, or that sales adds friction rather than value.</div>
         </div>
-        <div class="persona-card">
-            <h4>&#x1F6E0; CTO / VP Engineering</h4>
-            <div class="persona-meta"><strong>Cares about:</strong> Engineering focus, reliability, tooling debt, security</div>
-            <div class="persona-meta"><strong>Pain:</strong> Internal tooling maintenance burden</div>
-            <div class="persona-angle">Best angle: Reduce internal product-infra burden</div>
-            <div class="persona-avoid">Avoid: Cheap tool consolidation pitch</div>
-            <div class="persona-question">"Is any internal analytics/experimentation tooling becoming its own roadmap?"</div>
-        </div>
-        <div class="persona-card">
-            <h4>&#x1F4CB; VP Product / Head of Product</h4>
-            <div class="persona-meta"><strong>Cares about:</strong> Roadmap quality, adoption, retention, product velocity</div>
-            <div class="persona-meta"><strong>Pain:</strong> No trusted view across teams</div>
-            <div class="persona-angle">Best angle: Shared operating layer for product decisions</div>
-            <div class="persona-avoid">Avoid: Tool-feature dumping</div>
-            <div class="persona-question">"Does your team trust one shared product view, or do different teams bring different numbers?"</div>
-        </div>
+      </div>
     </div>
 
-    <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 1rem;">Pain &rarr; proof point &rarr; outbound angle</h3>
-    <div class="grid-2" style="gap: 2rem;">
-        <div class="pain-card">
-            <div class="pain-rank">Pain #1</div>
-            <h4>Fragmented product data &mdash; no trusted source of truth</h4>
-            <div class="pain-lang">"data was fragmented"; "we didn't have a full view"</div>
-            <div class="pain-proof">Proof: Supabase 10x weekly new users &bull; YC +30% data captured vs GA</div>
-            <div class="pain-angle">Most teams don't lack data &mdash; they lack one trusted place to act from.</div>
+    <div class="sp reveal">
+      <div class="sp-head">
+        <div>
+          <div class="sp-title">Job-switcher moments</div>
+          <div class="sp-signal">Signal: someone who knows PostHog moves into a new company, team or role</div>
         </div>
-        <div class="pain-card">
-            <div class="pain-rank">Pain #2</div>
-            <h4>Slow experimentation velocity</h4>
-            <div class="pain-lang">"A/B testing had a lot of friction"; "1-2 experiments per month"</div>
-            <div class="pain-proof">Proof: YC +40% messages, +35% successful matches</div>
-            <div class="pain-angle">Ship weekly but test monthly? Learning speed is behind shipping speed.</div>
+        <div class="sp-badge">Play 02</div>
+      </div>
+      <p style="font-size:.85rem;color:var(--text2);line-height:1.7;margin-bottom:1rem;"><strong style="color:var(--text);">Working assumption:</strong> They may be in a moment where product and data tooling decisions are being made or revisited, but only if their new scope actually touches the problem.</p>
+      <div class="sp-row">
+        <div class="sp-block">
+          <div class="sp-block-label">Test</div>
+          <div class="sp-block-body">Can "you know PostHog" become a useful conversation about their new stack, without sounding opportunistic?</div>
         </div>
-        <div class="pain-card">
-            <div class="pain-rank">Pain #3</div>
-            <h4>Shipping without seeing real behavior</h4>
-            <div class="pain-lang">"we observed drop-offs"; "without session replays"</div>
-            <div class="pain-proof">Proof: Hasura +10-20% conversion improvement</div>
-            <div class="pain-angle">Funnels show where users drop. Replay shows why.</div>
+        <div class="sp-block">
+          <div class="sp-block-label">Success</div>
+          <div class="sp-block-body">Replies that clarify stack timing, current workflow, buyer path, and whether PostHog is already in consideration.</div>
         </div>
-        <div class="pain-card">
-            <div class="pain-rank">Pain #4</div>
-            <h4>Engineering time on internal tooling</h4>
-            <div class="pain-lang">"maintenance burden became too much"</div>
-            <div class="pain-proof">Proof: ResearchGate at 25M+ users</div>
-            <div class="pain-angle">Internal tools work until maintaining them becomes the roadmap.</div>
+        <div class="sp-block">
+          <div class="sp-block-label">Stop if</div>
+          <div class="sp-block-body">They know PostHog but have no ownership, no timing, or no connection to the product and data workflow.</div>
         </div>
-    </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<!-- 4 — LIVE PROSPECTING DEMO -->
-<!-- ═══════════════════════════════════════════════════════ -->
-<div class="page fade-in" id="demo">
-    <div class="label"><span class="page-number">4</span> Live Prospecting Demo</div>
-    <h2 class="page-title">Three real companies I'd prospect today &mdash; not templates, actual outreach</h2>
-    <p class="page-sub">
-        Anyone can write a playbook with <code>{{variables}}</code>. Here's what it looks like when I actually do the work:
-        real signal research, real persona selection, real emails I'd send. Judge the quality.
-    </p>
-
-    <!-- Company 1: Raycast -->
-    <div class="demo-company">
-        <div class="demo-header">
-            <div class="demo-logo" style="background: rgba(245,78,0,.15);">R</div>
-            <div class="demo-company-info">
-                <h3>Raycast</h3>
-                <p>Developer productivity platform &bull; Series B ($30M) &bull; ~40 employees &bull; Berlin HQ</p>
-            </div>
-            <div class="demo-score">ICP Score: 22/30</div>
-        </div>
-
-        <div class="demo-grid">
-            <div class="demo-block">
-                <h4>Signals detected</h4>
-                <ul>
-                    <li>PLG devtool with extensions marketplace &mdash; strong self-serve motion</li>
-                    <li>~75% of team are engineers &mdash; engineering-led buying</li>
-                    <li>Pro plan + Teams plan = monetization through product adoption</li>
-                    <li>Extensions ecosystem = complex feature adoption tracking need</li>
-                    <li>EU-based = relevant for PostHog's data residency story</li>
-                </ul>
-            </div>
-            <div class="demo-block">
-                <h4>Pain hypothesis</h4>
-                <p>
-                    Raycast's value depends on which extensions users adopt and stick with. With a marketplace model,
-                    they need to know which extensions drive retention vs. which get installed and forgotten.
-                    That's a product analytics + experimentation problem, not a GA4 problem.
-                </p>
-            </div>
-        </div>
-
-        <div class="demo-grid">
-            <div class="demo-block">
-                <h4>Target persona</h4>
-                <p><strong>Product Engineer</strong> working on the extensions platform or onboarding flow. They care about instrumentation, not dashboards. They want to know "which extensions correlate with 30-day retention?" without filing a ticket to the data team.</p>
-            </div>
-            <div class="demo-block">
-                <h4>Why not a different persona?</h4>
-                <p>At 40 people, there's probably no VP Product or Head of Growth yet. The product engineer who owns the extensions platform IS the buyer. Going above them would feel like going around them &mdash; that's a brand risk.</p>
-            </div>
-        </div>
-
-        <div class="demo-email" data-ab-email="raycast">
-            <div class="demo-email-header">
-                <h5>&#x2709; Email I'd actually send</h5>
-                <div class="demo-email-actions">
-                    <div class="ab-toggle" aria-label="Raycast email tone">
-                        <button type="button" class="active" data-tone="safe">Safe</button>
-                        <button type="button" data-tone="bold">Bold</button>
-                    </div>
-                    <span class="tag tag-blue">Cold &mdash; PLG DevTool</span>
-                </div>
-            </div>
-            <div class="demo-email-body">
-                <div class="demo-email-subject">Subject: Extensions that stick vs. extensions that don't</div>
-                <div class="demo-email-text">
-                    Hey [name],<br><br>
-                    Raycast's extensions marketplace is growing fast &mdash; but I'd guess the harder question isn't "how many extensions exist" but "which ones actually drive retention vs. get installed and forgotten."<br><br>
-                    That's the kind of thing where GA4 or basic event tracking falls apart. You need to connect extension adoption &rarr; activation &rarr; 30-day retention in one view, ideally without building internal tooling to stitch it together.<br><br>
-                    PostHog does this natively: product analytics, session replay, and feature flags in one stack. No warehouse stitching required. And since you're EU-based, the data stays in EU.<br><br>
-                    Worth 10 minutes to see if this maps to your current setup? If not, genuinely no worries &mdash; happy to just point you at the relevant docs.
-                </div>
-            </div>
-        </div>
+      </div>
     </div>
 
-    <!-- Company 2: Mintlify -->
-    <div class="demo-company">
-        <div class="demo-header">
-            <div class="demo-logo" style="background: rgba(110,140,249,.15);">M</div>
-            <div class="demo-company-info">
-                <h3>Mintlify</h3>
-                <p>Developer documentation platform &bull; Series B ($45M) &bull; ~55 employees &bull; San Francisco</p>
-            </div>
-            <div class="demo-score">ICP Score: 25/30</div>
+    <div class="sp reveal">
+      <div class="sp-head">
+        <div>
+          <div class="sp-title">Creative multi-channel experiments</div>
+          <div class="sp-signal">Signal: high-ICP account with a clear product or account trigger</div>
         </div>
-
-        <div class="demo-grid">
-            <div class="demo-block">
-                <h4>Signals detected</h4>
-                <ul>
-                    <li>$10M ARR with 10x growth &mdash; scaling fast</li>
-                    <li>11 open roles including engineering &mdash; team is growing aggressively</li>
-                    <li>Self-serve + enterprise motion &mdash; classic PLG expansion path</li>
-                    <li>Docs-as-a-product model = product usage is everything</li>
-                    <li>AI features (search, chat) launched recently &mdash; new adoption surface</li>
-                </ul>
-            </div>
-            <div class="demo-block">
-                <h4>Pain hypothesis</h4>
-                <p>
-                    Mintlify is adding AI features (AI search, AI chat) on top of docs. The question isn't whether users try them &mdash; it's whether they come back. At 10x growth, they need to separate "AI feature curiosity" from "AI feature retention" before doubling down on the roadmap.
-                </p>
-            </div>
+        <div class="sp-badge">Play 03</div>
+      </div>
+      <p style="font-size:.85rem;color:var(--text2);line-height:1.7;margin-bottom:1rem;"><strong style="color:var(--text);">Working assumption:</strong> Normal email may not earn attention from a technical buyer who gets a lot of outreach. Something useful, specific, and slightly weird might.</p>
+      <div class="sp-row">
+        <div class="sp-block">
+          <div class="sp-block-label">Test</div>
+          <div class="sp-block-body">Email versus email plus LinkedIn plus Loom plus a small weird artifact. Does creative outreach get better replies from the right people?</div>
         </div>
-
-        <div class="demo-grid">
-            <div class="demo-block">
-                <h4>Target persona</h4>
-                <p><strong>Growth Engineer or Product Lead</strong> owning the AI features or the self-serve conversion funnel. At $10M ARR with 10x growth, someone is obsessing over which features drive expansion vs. which are shiny but don't convert.</p>
-            </div>
-            <div class="demo-block">
-                <h4>Campaign route</h4>
-                <p><strong>Cold &mdash; AI product team play.</strong> Strong ICP fit, clear AI feature adoption signal, growing engineering team. The hiring signal (11 roles) suggests they're building fast and need to measure what's working before they 3x the team.</p>
-            </div>
+        <div class="sp-block">
+          <div class="sp-block-label">Success</div>
+          <div class="sp-block-body">Meaningful replies that reveal pain, timing or buyer path. Not just positive responses.</div>
         </div>
-
-        <div class="demo-email" data-ab-email="mintlify">
-            <div class="demo-email-header">
-                <h5>&#x2709; Email I'd actually send</h5>
-                <div class="demo-email-actions">
-                    <div class="ab-toggle" aria-label="Mintlify email tone">
-                        <button type="button" class="active" data-tone="safe">Safe</button>
-                        <button type="button" data-tone="bold">Bold</button>
-                    </div>
-                    <span class="tag tag-blue">Cold &mdash; AI Product</span>
-                </div>
-            </div>
-            <div class="demo-email-body">
-                <div class="demo-email-subject">Subject: AI search &mdash; curiosity or retention driver?</div>
-                <div class="demo-email-text">
-                    Hey [name],<br><br>
-                    Congrats on the growth &mdash; $10M ARR at Mintlify's pace is real. Quick hypothesis for you:<br><br>
-                    You've launched AI search and AI chat on top of docs. I'd bet a lot of users try them. The harder question is whether those features drive meaningful retention or just first-session curiosity. That gap between "tried it" and "can't live without it" is usually where the AI roadmap bets go wrong.<br><br>
-                    PostHog lets you track that loop natively &mdash; feature adoption &rarr; retention cohorts &rarr; A/B test the next iteration &mdash; without stitching analytics and experimentation tools together.<br><br>
-                    15 minutes to see if this is relevant? If the timing's off, I'll disappear gracefully.
-                </div>
-            </div>
+        <div class="sp-block">
+          <div class="sp-block-label">Stop if</div>
+          <div class="sp-block-body">The weirdness becomes the point instead of the usefulness. Or if the account is clearly a bad fit regardless of format.</div>
         </div>
+      </div>
     </div>
 
-    <!-- Company 3: Tonic.ai -->
-    <div class="demo-company">
-        <div class="demo-header">
-            <div class="demo-logo" style="background: rgba(152,124,176,.15);">T</div>
-            <div class="demo-company-info">
-                <h3>Tonic.ai</h3>
-                <p>Synthetic data platform &bull; Series B ($47M) &bull; ~120 employees &bull; San Francisco</p>
-            </div>
-            <div class="demo-score">ICP Score: 20/30</div>
-        </div>
-
-        <div class="demo-grid">
-            <div class="demo-block">
-                <h4>Signals detected</h4>
-                <ul>
-                    <li>Hiring VP Engineering &mdash; leadership scaling signal</li>
-                    <li>Planning to 3x team &mdash; rapid headcount growth</li>
-                    <li>Multiple products (Structural, Textual, Ephemeral) &mdash; multi-product adoption tracking</li>
-                    <li>Enterprise customers with complex data workflows</li>
-                    <li>Developer-focused positioning &mdash; technical buyer path</li>
-                </ul>
-            </div>
-            <div class="demo-block">
-                <h4>Pain hypothesis</h4>
-                <p>
-                    Tonic.ai has three distinct products. As they 3x the team, they need to understand which product drives land, which drives expand, and where users drop across the multi-product journey. That cross-product visibility is exactly where point tools fall apart.
-                </p>
-            </div>
-        </div>
-
-        <div class="demo-email" data-ab-email="tonic">
-            <div class="demo-email-header">
-                <h5>&#x2709; Email I'd actually send</h5>
-                <div class="demo-email-actions">
-                    <div class="ab-toggle" aria-label="Tonic email tone">
-                        <button type="button" class="active" data-tone="safe">Safe</button>
-                        <button type="button" data-tone="bold">Bold</button>
-                    </div>
-                    <span class="tag tag-purple">Cold &mdash; Multi-product</span>
-                </div>
-            </div>
-            <div class="demo-email-body">
-                <div class="demo-email-subject">Subject: Which Tonic product actually lands the deal?</div>
-                <div class="demo-email-text">
-                    Hey [name],<br><br>
-                    Weird question: do you know which of Structural, Textual, and Ephemeral is the actual land product vs. which gets brought up in expansion conversations? Because I'd bet $20 the answer is "we think we know but haven't verified it with data."<br><br>
-                    I only ask because at 3x team growth, the cost of getting that wrong is hiring for the wrong product line. PostHog tracks cross-product adoption in one view &mdash; no warehouse required.<br><br>
-                    Could be totally off base. If so, tell me and I'll owe you that $20.
-                </div>
-            </div>
-        </div>
+    <div class="mascot-row reveal">
+      <div class="hog-sm">🦔</div>
+      <div class="hog-quote">If the meeting is useless, the calendar lied.</div>
     </div>
-</div>
+  </div>
+</section>
 
-<!-- ═══════════════════════════════════════════════════════ -->
-<!-- 5 — CAMPAIGNS & COPY BANK -->
-<!-- ═══════════════════════════════════════════════════════ -->
-<div class="page fade-in" id="campaigns">
-    <div class="label"><span class="page-number">5</span> Campaigns & Copy Bank</div>
-    <h2 class="page-title">The plays I'd run &mdash; prioritized by signal strength, not volume</h2>
-    <p class="page-sub">Warmbound and job-switcher campaigns first. Cold named-accounts only with a concrete pain hypothesis.</p>
+<!-- 90 DAYS -->
+<section id="days">
+  <div class="container">
+    <div class="label reveal">06 · 90-day plan</div>
+    <h2 class="sh reveal">90 days: earn the motion, then improve it</h2>
+    <p class="intro reveal">Not a fixed plan. It's how I'd think about earning trust: start close to the work, understand what PostHog already has, then systematize only what improves qualified pipeline.</p>
 
-    <div class="grid-2" style="gap: 2rem; margin-bottom: 2.5rem;">
-        <div class="campaign-card warm">
-            <div class="campaign-priority" style="color: var(--success);">Priority 1 &mdash; Warm</div>
-            <h4>Warmbound Expansion</h4>
-            <div class="campaign-detail"><strong>Target:</strong><p>Accounts already using PostHog with meaningful usage, product count, or team growth signals.</p></div>
-            <div class="campaign-detail"><strong>Message:</strong><p>"Your team is already using X. Teams at this stage often get value by adding Y because it connects Z."</p></div>
-            <div class="campaign-detail"><strong>CTA:</strong><p>"Worth reviewing where your current PostHog setup could remove another tool?"</p></div>
-        </div>
-        <div class="campaign-card warmish">
-            <div class="campaign-priority" style="color: var(--posthog-yellow);">Priority 2 &mdash; Warmish</div>
-            <h4>Job Switchers</h4>
-            <div class="campaign-detail"><strong>Target:</strong><p>Former PostHog users, champions, or admins who moved into a new relevant role.</p></div>
-            <div class="campaign-detail"><strong>Trigger:</strong><p>New job at a company with product-led motion or fragmented stack.</p></div>
-            <div class="campaign-detail"><strong>Message:</strong><p>"You used PostHog before. Thought it might be relevant as you build the stack at [new company]."</p></div>
-        </div>
-        <div class="campaign-card cold">
-            <div class="campaign-priority" style="color: var(--posthog-blue);">Priority 3 &mdash; Cold</div>
-            <h4>PLG DevTools &mdash; Fragmented Stack</h4>
-            <div class="campaign-detail"><strong>Target:</strong><p>Series A-C devtool / infra / OSS-led SaaS with docs, free tier, and stack sprawl.</p></div>
-            <div class="campaign-detail"><strong>Trigger:</strong><p>Detected Amplitude/Mixpanel + Segment + LaunchDarkly/Hotjar; hiring product/growth engineers.</p></div>
-        </div>
-        <div class="campaign-card cold">
-            <div class="campaign-priority" style="color: var(--posthog-blue);">Priority 4 &mdash; Cold</div>
-            <h4>AI Product Teams</h4>
-            <div class="campaign-detail"><strong>Target:</strong><p>AI SaaS teams launching LLM workflows, evals, copilots, or usage-based products.</p></div>
-            <div class="campaign-detail"><strong>Trigger:</strong><p>AI feature launch, usage-based pricing, hiring product/growth/data roles.</p></div>
-        </div>
+    <div class="phase reveal">
+      <div class="p-num">1</div>
+      <div class="p-label">DAYS 1–30</div>
+      <div class="p-title">Learn what "good" looks like</div>
+      <div class="p-body">Understand the product suite, buyer personas, pricing logic and why sales gets involved. Learn the current outbound segmentation, signal definitions, Salesforce and Clay workflows, AE expectations, and what a strong handoff looks like. Execute close to the work: accounts, messages, replies, qualification, DQ reasons.</div>
+      <div class="p-caution">Not over-automating before understanding the data. Not assuming my approach beats what already exists.</div>
     </div>
 
-    <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 1rem;">Template copy bank</h3>
-
-    <div class="email-template">
-        <div class="email-header">
-            <h4>&#x1F525; Warmbound Expansion</h4>
-            <span class="tag tag-green">Priority 1</span>
-        </div>
-        <div class="email-body">
-            <div class="email-subject">Subject: PostHog setup question</div>
-            <div class="email-text">
-                Hi <span class="var">{{first_name}}</span>,<br><br>
-                Saw your team is already using <span class="var">{{product_signal}}</span> in PostHog. At this stage, teams often get more value by connecting it with <span class="var">{{adjacent_product}}</span> so they can move from "what happened" to "what should we test next."<br><br>
-                Worth reviewing whether there's a real expansion case here, or should I just send the relevant docs?
-            </div>
-        </div>
+    <div class="phase reveal">
+      <div class="p-num">2</div>
+      <div class="p-label">DAYS 31–60</div>
+      <div class="p-title">Improve the account hypothesis layer</div>
+      <div class="p-body">Test which signal and message combinations create useful replies, problem agreement and AE-accepted opportunities. Build lightweight account hypotheses before outreach. Improve handoff notes and DQ reasons so the team can see what is working and what is noise.</div>
+      <div class="p-caution">Not mistaking personalization for relevance. Not scaling plays based on volume alone.</div>
     </div>
 
-    <div class="email-template">
-        <div class="email-header">
-            <h4>&#x1F4BC; Job Switcher</h4>
-            <span class="tag tag-yellow">Priority 2</span>
-        </div>
-        <div class="email-body">
-            <div class="email-subject">Subject: PostHog at <span class="var">{{new_company}}</span></div>
-            <div class="email-text">
-                Hi <span class="var">{{first_name}}</span>,<br><br>
-                Saw you recently joined <span class="var">{{new_company}}</span>. Given your previous exposure to PostHog, thought it might be relevant as your team thinks about product analytics, replay, flags or experiments.<br><br>
-                Worth sending a short map of where PostHog usually fits for teams at this stage?
-            </div>
-        </div>
+    <div class="phase reveal">
+      <div class="p-num">3</div>
+      <div class="p-label">DAYS 61–90</div>
+      <div class="p-title">Systematize what deserves to scale</div>
+      <div class="p-body">Turn the strongest patterns into reusable workflows: account brief templates, signal-to-hypothesis logic, qualification notes, Clay improvements and feedback loops. Kill weak signals and make it easier to repeat what works.</div>
+      <div class="p-caution">Only scaling once the data shows quality: useful replies, qualified pain, clean handoffs, low brand risk and AE acceptance.</div>
     </div>
 
-    <div class="email-template">
-        <div class="email-header">
-            <h4>&#x1F4E1; Cold PLG DevTool</h4>
-            <span class="tag tag-blue">Priority 3</span>
-        </div>
-        <div class="email-body">
-            <div class="email-subject">Subject: Product data split across tools?</div>
-            <div class="email-text">
-                Hi <span class="var">{{first_name}}</span>,<br><br>
-                Noticed <span class="var">{{company}}</span> has a self-serve developer motion and is hiring around <span class="var">{{role_signal}}</span>. Usually that means product usage, replay, attribution and experiments start living in different places.<br><br>
-                PostHog helps product engineers connect those workflows in one stack. Worth a quick look at how it would map to your current setup?
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<!-- 6 — DISCOVERY & QUALIFICATION -->
-<!-- ═══════════════════════════════════════════════════════ -->
-<div class="page fade-in" id="discovery">
-    <div class="label"><span class="page-number">6</span> Discovery & Qualification</div>
-    <h2 class="page-title">Structure calls around real pain &mdash; not a demo script</h2>
-    <p class="page-sub">
-        The goal isn't to close in one call. It's to decide if PostHog solves a real problem,
-        whether there's commercial potential, and whether there's a concrete next step.
-    </p>
-
-    <div class="discovery-flow" style="margin-bottom: 2.5rem;">
-        <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1.5rem;">Discovery flow</h3>
-        <div class="flow-step"><div class="flow-num">1</div><h4>Be transparent</h4><p>Explain why you reached out and what signal triggered the conversation.</p></div>
-        <div class="flow-step"><div class="flow-num">2</div><h4>Understand role</h4><p>What does this person own, and do they feel the pain directly?</p></div>
-        <div class="flow-step"><div class="flow-num">3</div><h4>Map current stack</h4><p>Analytics, replay, flags, experiments, warehouse, attribution, error tracking.</p></div>
-        <div class="flow-step"><div class="flow-num">4</div><h4>Find specific pain</h4><p>What's slow, trusted poorly, duplicated, expensive, or hard to debug?</p></div>
-        <div class="flow-step"><div class="flow-num">5</div><h4>Quantify impact</h4><p>Time wasted, experiments delayed, conversion issue, tool cost, engineering opportunity cost.</p></div>
-        <div class="flow-step"><div class="flow-num">6</div><h4>Check timing & authority</h4><p>Is there a live project? Are they the buyer, champion, or route to buyer?</p></div>
-        <div class="flow-step"><div class="flow-num">7</div><h4>Ask permission to pitch</h4><p>Only after pain is clear. "Would it be useful if I showed how teams solve this?"</p></div>
-        <div class="flow-step"><div class="flow-num">8</div><h4>Ask the hard question</h4><p>"What would prevent this from becoming a priority?"</p></div>
-        <div class="flow-step"><div class="flow-num">9</div><h4>Set next step on the call</h4><p>Trial, technical demo, team intro, async Loom, docs, or close out.</p></div>
+    <h4 style="font-family:var(--sans);font-size:.92rem;font-weight:700;margin:2.5rem 0 1rem;color:var(--text2);letter-spacing:.02em;" class="reveal">Metrics I'd watch</h4>
+    <div class="metrics reveal">
+      <div class="metric">
+        <div class="m-name">Meaningful reply rate</div>
+        <div class="m-desc">Replies that reveal pain, context or timing. Not just positive responses.</div>
+      </div>
+      <div class="metric">
+        <div class="m-name">Qualified conversation rate</div>
+        <div class="m-desc">Conversations where a real problem gets discussed and explored.</div>
+      </div>
+      <div class="metric">
+        <div class="m-name">AE acceptance</div>
+        <div class="m-desc">Does the AE agree this account is worth pursuing after the handoff?</div>
+      </div>
+      <div class="metric">
+        <div class="m-name">DQ quality</div>
+        <div class="m-desc">Are we disqualifying for clear reasons that improve future targeting?</div>
+      </div>
     </div>
 
-    <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 1rem;">Qualification checklist</h3>
-    <div class="qual-grid">
-        <div class="qual-card">
-            <h4>Specific pain</h4>
-            <div class="qual-yes">&#10003; They describe a concrete workflow/problem</div>
-            <div class="qual-no">&#10007; Only vague curiosity</div>
-        </div>
-        <div class="qual-card">
-            <h4>Impact</h4>
-            <div class="qual-yes">&#10003; Time, money, growth, reliability, or focus cost</div>
-            <div class="qual-no">&#10007; No meaningful impact</div>
-        </div>
-        <div class="qual-card">
-            <h4>Timeline</h4>
-            <div class="qual-yes">&#10003; Project or likely action within 6 months</div>
-            <div class="qual-no">&#10007; No timing or urgency</div>
-        </div>
-        <div class="qual-card">
-            <h4>Authority / path</h4>
-            <div class="qual-yes">&#10003; They own the problem or can bring the buyer</div>
-            <div class="qual-no">&#10007; No buyer path</div>
-        </div>
-        <div class="qual-card">
-            <h4>Commercial potential</h4>
-            <div class="qual-yes">&#10003; Usage, team size, or expansion can justify sales</div>
-            <div class="qual-no">&#10007; Better handled via self-serve/docs</div>
-        </div>
-        <div class="qual-card">
-            <h4>Product fit</h4>
-            <div class="qual-yes">&#10003; PostHog products map to the pain</div>
-            <div class="qual-no">&#10007; Problem outside PostHog scope</div>
-        </div>
+    <div class="mascot-row reveal">
+      <div class="hog-sm">🦔</div>
+      <div class="hog-quote">Scale slowly. Spam quickly dies. Hedgehogs remember.</div>
     </div>
+  </div>
+</section>
 
-    <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 1rem;">Disqualification-friendly responses</h3>
-    <div class="disqual-card">"Sounds like this isn't a live problem. I won't push for a meeting &mdash; here are the docs if useful."</div>
-    <div class="disqual-card">"If the main need is lightweight web analytics, self-serve is probably the right path."</div>
-    <div class="disqual-card">"If there's no expansion path, I'd rather not waste your time with a sales process."</div>
-    <div class="disqual-card">"This sounds more like a data warehouse / BI problem than a PostHog problem."</div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<!-- 7 — 90-DAY PLAYBOOK -->
-<!-- ═══════════════════════════════════════════════════════ -->
-<div class="page fade-in" id="playbook">
-    <div class="label"><span class="page-number">7</span> 90-Day Playbook</div>
-    <h2 class="page-title">How I'd operationalize this &mdash; from day one to pipeline</h2>
-    <p class="page-sub">
-        The roadmap, the ops stack, and the metrics I'd track &mdash; all in one place.
-        This is a hypothesis, not a prescription. I'd iterate weekly based on what the data says.
-    </p>
-
-    <div class="hypothesis">
-        <strong>&#x26A0; This is a starting plan, not a contract.</strong> I don't know PostHog's internal data yet. I don't know which signals are already being tracked or how product usage data flows to sales. The first week is about learning the real landscape and adjusting everything below.
+<!-- WHY ME -->
+<section id="whyme">
+  <div class="container">
+    <div class="label reveal">07 · Why me</div>
+    <h2 class="sh reveal">I can execute the BDR work and think beyond the sequence.</h2>
+    <p class="intro reveal">I've done the manual work first: outbound, qualification, AE handoffs, full-cycle selling, BDR training and founder-led GTM. That's why I'm interested in systems: not to avoid the work, but to make the best parts of it repeatable.</p>
+    <div class="proof-grid reveal">
+      <div class="proof-card">
+        <div class="pc-icon">🏆</div>
+        <div class="pc-title">Enterprise BDR execution</div>
+        <div class="pc-body">Senior Enterprise BDR at Bringg. #1 global BDR across 13 reps. 152% quota attainment. $6.2M sourced pipeline. C-level outbound and MEDDIC-qualified handoffs.</div>
+      </div>
+      <div class="proof-card">
+        <div class="pc-icon">🔄</div>
+        <div class="pc-title">Full-cycle AE context</div>
+        <div class="pc-body">Enterprise AE at Product-Live. First seller alongside the co-founder. Owned full-cycle outreach and deal progression. Turned founder-led selling into more repeatable execution.</div>
+      </div>
+      <div class="proof-card">
+        <div class="pc-icon">⚙️</div>
+        <div class="pc-title">GTM systems</div>
+        <div class="pc-body">As a growth consultant: ICP definition, segmentation, messaging, outbound systems, CRM and enrichment workflows, Clay, AI workflows and automation.</div>
+      </div>
+      <div class="proof-card">
+        <div class="pc-icon">👥</div>
+        <div class="pc-title">Team leverage</div>
+        <div class="pc-body">Managed and trained BDRs, built sales processes, improved tooling and worked on enablement at scale, including a sales community of 700+ reps at Sodexo.</div>
+      </div>
+      <div class="proof-card">
+        <div class="pc-icon">🎯</div>
+        <div class="pc-title">Technical buyer awareness</div>
+        <div class="pc-body">I don't pretend to be a product engineer. My edge is learning the product, stack, workflow and pain deeply enough to be specific, useful and transparent with technical buyers.</div>
+      </div>
     </div>
-
-    <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 1rem;">Roadmap</h3>
-    <div class="roadmap-track">
-        <div class="roadmap-item">
-            <div class="roadmap-time">Week 1</div>
-            <div class="roadmap-content">
-                <h4>Learn the landscape</h4>
-                <p>Understand PostHog's product usage data, CRM state, existing outbound learnings. Build first warmbound and job-switcher lists in Clay. Set up scoring model. Ship first sequences.</p>
-            </div>
-        </div>
-        <div class="roadmap-item">
-            <div class="roadmap-time">Week 2</div>
-            <div class="roadmap-content">
-                <h4>First campaigns live</h4>
-                <p>Launch warmbound expansion + job-switcher campaigns. Run one small cold test (PLG devtools). Analyze replies &mdash; are the pain hypotheses landing?</p>
-            </div>
-        </div>
-        <div class="roadmap-item">
-            <div class="roadmap-time">Weeks 3&ndash;4</div>
-            <div class="roadmap-content">
-                <h4>Double down or kill</h4>
-                <p>Scale what converts. Kill what doesn't. Add AI product team campaigns if cold test shows signal. Output: first qualified meetings, segment scorecard, copy iterations.</p>
-            </div>
-        </div>
-        <div class="roadmap-item">
-            <div class="roadmap-time">Days 31&ndash;60</div>
-            <div class="roadmap-content">
-                <h4>Operationalize</h4>
-                <p>Salesforce routing automated. Clay enrichment running weekly. Weekly outbound review cadence with the team. Start building repeatable playbooks by segment.</p>
-            </div>
-        </div>
-        <div class="roadmap-item">
-            <div class="roadmap-time">Days 61&ndash;90</div>
-            <div class="roadmap-content">
-                <h4>Expand & compound</h4>
-                <p>Add new signal sources: closed-lost reactivation, event lists, competitor consolidation plays. Build pipeline model. Contribute learnings back to PostHog's GTM playbook.</p>
-            </div>
-        </div>
+    <div class="callout reveal" style="border-left-color:var(--accent);max-width:600px;">
+      I'd start close to the work: accounts, messages, replies, qualification, handoffs. Then help turn what works into a repeatable system.
     </div>
-
-    <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 1rem;">Tech stack I'd wire up</h3>
-    <table class="styled-table" style="margin-bottom: 2.5rem;">
-        <thead><tr><th>Layer</th><th>Tools</th><th>Purpose</th></tr></thead>
-        <tbody>
-            <tr><td>Infrastructure</td><td>Zapmail</td><td>Domains, inboxes, DNS, SPF/DKIM/DMARC, warmup</td></tr>
-            <tr><td>Data &amp; enrichment</td><td>Clay / FullEnrich</td><td>Account enrichment, signal detection, AI research, verified emails and phones</td></tr>
-            <tr><td>Validation</td><td>ZeroBounce</td><td>Email validation, bounce prevention, inbox placement checks</td></tr>
-            <tr><td>Sending</td><td>Smartlead</td><td>Controlled cold outbound tests, inbox rotation, reply tracking</td></tr>
-            <tr><td>Automation</td><td>Claude Code / n8n</td><td>Workflows, routing, enrichment pipelines, reply handling, account analysis</td></tr>
-            <tr><td>CRM / source of truth</td><td>Salesforce</td><td>Account history, qualification, opportunity tracking</td></tr>
-            <tr><td>Product-led signals</td><td>PostHog</td><td>Usage, intent, website behavior, warmbound triggers</td></tr>
-        </tbody>
-    </table>
-
-    <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 1rem;">Metrics I'd track &mdash; connected to PostHog's outbound goals</h3>
-    <div class="grid-3" style="margin-bottom: 2.5rem;">
-        <div class="card">
-            <h3 style="color: var(--posthog-orange);">Positive reply rate</h3>
-            <p>Best early signal of message-market fit. Are the pain hypotheses resonating with technical buyers?</p>
-        </div>
-        <div class="card">
-            <h3 style="color: var(--posthog-orange);">Problem-agreement rate</h3>
-            <p>Do prospects confirm the pain in their own words? This matters more than meeting volume.</p>
-        </div>
-        <div class="card">
-            <h3 style="color: var(--posthog-orange);">Qualified opportunity rate</h3>
-            <p>The real north star. Are these turning into commercial conversations, not just demos?</p>
-        </div>
-        <div class="card">
-            <h3 style="color: var(--posthog-orange);">Signal-level conversion</h3>
-            <p>Which triggers justify outreach? Helps Clay and the scoring model get smarter over time.</p>
-        </div>
-        <div class="card">
-            <h3 style="color: var(--posthog-orange);">Brand-risk indicators</h3>
-            <p>Negative replies, unsubscribes, spam complaints. PostHog's brand is an asset &mdash; protect it.</p>
-        </div>
-        <div class="card">
-            <h3 style="color: var(--posthog-orange);">DQ quality</h3>
-            <p>A high disqualification rate means targeting is too broad. A low one means I'm not qualifying hard enough.</p>
-        </div>
+    <div class="mascot-row reveal">
+      <div class="hog-sm">🦔</div>
+      <div class="hog-quote">Specific, useful, transparent. The hedgehog demands nothing less.</div>
     </div>
+  </div>
+</section>
 
-    <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 1rem;">Stop / continue / iterate rules</h3>
-    <div class="grid-3">
-        <div class="card" style="border-left: 3px solid var(--danger);">
-            <h3 style="color: var(--danger);">Stop if...</h3>
-            <p>Pain hypothesis is wrong. Negative replies indicate brand damage. No problem agreement after 50 sends.</p>
-        </div>
-        <div class="card" style="border-left: 3px solid var(--success);">
-            <h3 style="color: var(--success);">Continue if...</h3>
-            <p>Prospects repeat the pain in their own words. Problem agreement is consistent across the segment.</p>
-        </div>
-        <div class="card" style="border-left: 3px solid var(--posthog-yellow);">
-            <h3 style="color: var(--posthog-yellow);">Iterate if...</h3>
-            <p>Positive replies but weak CTA conversion. Scale only when the signal is repeatable in Clay.</p>
-        </div>
-    </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<!-- ABOUT ME -->
-<!-- ═══════════════════════════════════════════════════════ -->
-<div class="about-section fade-in" id="about">
-    <div class="about-layout">
-        <div class="about-image-wrap">
-            <img src="pierre-card.png" alt="Pierre Vernier — PostHog GTM Team card">
-        </div>
-        <div class="about-content">
-            <div class="label">About the author</div>
-            <h2 class="page-title">Pierre Vernier</h2>
-
-            <div class="about-bio">
-                I'm a <strong>GTM operator</strong> with 5+ years scaling B2B SaaS revenue &mdash; from BDR to AE to building outbound systems from scratch as a consultant. Paris, London, Tel Aviv.
-                <br><br>
-                As <strong>Senior Enterprise BDR at Bringg</strong>, I built the France market entry and EMEA expansion strategy from zero. Owned C-level outreach, ran MEDDIC-qualified handoffs, and <strong>ranked #1 out of 13 global BDRs at 152% of quota</strong>. That's $6.2M in pipeline sourced &mdash; my number, not the team's.
-                <br><br>
-                I then moved into a <strong>full-cycle AE role at Product-Live</strong> &mdash; first seller alongside the co-founder. Generated 80 qualified enterprise meetings, hit 110% of quota, and built the entire sales playbook from founder-led to repeatable execution.
-                <br><br>
-                Today I run <strong>multiple simultaneous GTM missions as a freelance consultant</strong>. This is where I became an outbound systems builder: ICP definition, signal-based targeting, Clay + AI enrichment pipelines, multi-channel sequencing. I generated <strong>$4M+ in qualified pipeline and 10 enterprise meetings per week</strong> for an SEO SaaS, scaled an HR Tech startup from <strong>$40K to $100K MRR in 6 months</strong>, and opened <strong>15 deals with top 250 AWS accounts</strong> through a partnership motion.
-                <br><br>
-                <strong style="color: var(--posthog-orange);">The developer buyer gap &mdash; let me address it directly.</strong> PostHog sells to product engineers and technical teams. I'm not an engineer. But I've spent my career selling technical products to technical buyers &mdash; SaaS platforms, AI tools, enterprise data products. I know how to earn credibility with CTOs and product leads because I learn their stack, their workflows, and their pain before I ever pitch. This playbook is the proof: I didn't write generic sales copy. I studied PostHog's handbook, product, customers, and outbound philosophy, then built something that respects how technical teams want to be sold to. That's the skill that transfers.
-                <br><br>
-                <span style="color: var(--text-muted); font-size: 0.92rem;">P.S. &mdash; This site is tracked with PostHog analytics. Practicing what I preach.</span>
-            </div>
-
-            <!-- KPIs: BDR -->
-            <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 1rem;">As a BDR</h3>
-            <div class="about-highlights">
-                <div class="about-stat">
-                    <div class="about-stat-value">$6.2M</div>
-                    <div class="about-stat-label">Pipeline sourced</div>
-                </div>
-                <div class="about-stat">
-                    <div class="about-stat-value">152%</div>
-                    <div class="about-stat-label">Quota &mdash; #1 of 13 global BDRs</div>
-                </div>
-                <div class="about-stat">
-                    <div class="about-stat-value">EMEA</div>
-                    <div class="about-stat-label">Built France launch & expansion</div>
-                </div>
-            </div>
-            <div class="about-bridge">At PostHog: I'd bring the same territory-building instinct. Bringg was enterprise logistics SaaS selling to C-level &mdash; similar deal complexity, different product.</div>
-
-            <!-- KPIs: AE -->
-            <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 1rem;">As an AE</h3>
-            <div class="about-highlights">
-                <div class="about-stat">
-                    <div class="about-stat-value">110%</div>
-                    <div class="about-stat-label">Quota attainment</div>
-                </div>
-                <div class="about-stat">
-                    <div class="about-stat-value">80</div>
-                    <div class="about-stat-label">Qualified enterprise meetings</div>
-                </div>
-                <div class="about-stat">
-                    <div class="about-stat-value">50+</div>
-                    <div class="about-stat-label">Deals closed</div>
-                </div>
-            </div>
-            <div class="about-bridge">At PostHog: I understand the full cycle. Meetings I book won't be wasted &mdash; I've been the AE receiving bad pipeline and I know what qualified looks like.</div>
-
-            <!-- KPIs: Freelance -->
-            <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 1rem;">As a Growth Consultant</h3>
-            <div class="about-highlights">
-                <div class="about-stat">
-                    <div class="about-stat-value">$4M+</div>
-                    <div class="about-stat-label">Pipeline via AI-powered outbound</div>
-                </div>
-                <div class="about-stat">
-                    <div class="about-stat-value">2.5x</div>
-                    <div class="about-stat-label">MRR growth ($40K &rarr; $100K)</div>
-                </div>
-                <div class="about-stat">
-                    <div class="about-stat-value">10/wk</div>
-                    <div class="about-stat-label">Enterprise meetings generated</div>
-                </div>
-            </div>
-            <div class="about-bridge">At PostHog: The Clay + AI enrichment systems I build for clients are exactly the operational model described in this playbook. I don't just theorize &mdash; I ship.</div>
-
-            <div class="about-tags">
-                <span class="about-tag">MEDDIC</span>
-                <span class="about-tag">Command of the Message</span>
-                <span class="about-tag">Clay Certified</span>
-                <span class="about-tag">Salesforce</span>
-                <span class="about-tag">Lemlist</span>
-                <span class="about-tag">Sales Navigator</span>
-                <span class="about-tag">HubSpot Certified</span>
-                <span class="about-tag">AI outbound workflows</span>
-                <span class="about-tag">EMEA expansion</span>
-                <span class="about-tag">PLG / self-serve SaaS</span>
-                <span class="about-tag">French / English / Spanish</span>
-            </div>
-        </div>
-    </div>
-</div>
-
+</main>
 
 <footer>
-    <p>
-        Built by Pierre Vernier &bull; Inspired by <a href="https://posthog.com" target="_blank">PostHog</a>'s brand &bull;
-        Sources: <a href="https://posthog.com/handbook" target="_blank">Handbook</a>,
-        <a href="https://posthog.com/handbook/growth/sales/outbound-sales" target="_blank">Outbound Sales</a>,
-        <a href="https://posthog.com/customers" target="_blank">Customer Stories</a>,
-        <a href="https://posthog.com/pricing" target="_blank">Pricing</a>
-        &bull; &#x1F994; No hedgehogs were harmed
-    </p>
+  <div class="footer-inner">
+    <div class="footer-hog">🦔</div>
+    <div class="footer-text">
+      Built by Pierre Vernier.<br>
+      Based on PostHog's public product pages, handbook, outbound sales process and account planning framework.<br>
+      No internal data accessed. All recommendations are working hypotheses.<br><br>
+      🦔 No hedgehogs were harmed.
+    </div>
+  </div>
 </footer>
 
 <script>
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('visible'); });
-    }, { threshold: 0.08 });
-    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  document.querySelector('.theme-btn').textContent = isDark ? '🌙' : '☀️';
+}
 
-    const body = document.body;
-    const themeToggle = document.querySelector('.theme-toggle');
-    const savedTheme = localStorage.getItem('posthog-playbook-theme');
-    const scrollProgressBar = document.querySelector('.scroll-progress-bar');
-    const mascot = document.querySelector('.mascot');
-    const mascotBubble = document.querySelector('.mascot-bubble');
-    const chapterDots = document.querySelectorAll('.chapter-dot');
-    const hogCursor = document.querySelector('.hog-cursor');
-    const mascotLines = {
-        philosophy: 'If it sounds like SaaS soup, it goes in the bin.',
-        icp: 'Signal first. Spreadsheet second. Ego never.',
-        personas: 'Different buyer, different pain. Wild concept.',
-        demo: 'This is where the email earns its oxygen.',
-        campaigns: 'Small tests. Real replies. No victory laps on opens.',
-        discovery: 'Qualification is just intellectual honesty with a calendar invite.',
-        playbook: 'Ninety days is plenty of time to learn what actually works.',
-        about: 'Builder energy. Still allergic to "quick sync".'
-    };
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.07, rootMargin: '0px 0px -30px 0px' });
 
-    if (savedTheme === 'light') body.dataset.theme = 'light';
-    if (themeToggle) themeToggle.textContent = body.dataset.theme === 'light' ? '☾' : '☀';
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
-    themeToggle?.addEventListener('click', () => {
-        const nextTheme = body.dataset.theme === 'light' ? 'dark' : 'light';
-        body.dataset.theme = nextTheme === 'light' ? 'light' : '';
-        localStorage.setItem('posthog-playbook-theme', nextTheme);
-        themeToggle.textContent = nextTheme === 'light' ? '☾' : '☀';
-    });
-
-    if (hogCursor && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
-        window.addEventListener('mousemove', (event) => {
-            hogCursor.classList.add('visible');
-            hogCursor.style.transform = `translate(${event.clientX}px, ${event.clientY}px) translate(-50%, -50%)`;
-            const target = event.target;
-            const isInteractive = target.closest?.('a, button, input, textarea, select, [role="button"]');
-            hogCursor.classList.toggle('pointing', Boolean(isInteractive));
-        }, { passive: true });
-        window.addEventListener('mousedown', () => hogCursor.classList.add('clicking'));
-        window.addEventListener('mouseup', () => hogCursor.classList.remove('clicking'));
-        document.addEventListener('mouseleave', () => hogCursor.classList.remove('visible'));
-    }
-
-    const scorePresets = {
-        raycast: { name: 'Raycast', signals: ['growth', 'stack', 'hiring', 'plg', 'funding', 'surface', 'launch'] },
-        mintlify: { name: 'Mintlify', signals: ['growth', 'stack', 'hiring', 'plg', 'funding', 'surface', 'launch'] },
-        tonic: { name: 'Tonic.ai', signals: ['growth', 'stack', 'hiring', 'funding', 'surface', 'launch'] },
-        blank: { name: '', signals: [] }
-    };
-    const scoreInput = document.querySelector('.score-input');
-    const scoreValue = document.querySelector('.score-value');
-    const scoreOrb = document.querySelector('.score-orb');
-    const scoreVerdict = document.querySelector('.score-verdict');
-    const scoreNote = document.querySelector('.score-note');
-    const scoreSignalButtons = document.querySelectorAll('[data-score-signal]');
-    const scorePresetButtons = document.querySelectorAll('[data-preset]');
-    let animatedScore = 0;
-
-    const updateScore = () => {
-        const selected = [...scoreSignalButtons].filter(button => button.classList.contains('active'));
-        const rawScore = selected.reduce((sum, button) => sum + Number(button.dataset.points), 0);
-        const score = Math.max(0, Math.min(30, rawScore));
-        const start = animatedScore;
-        const end = score;
-        const startedAt = performance.now();
-        const animate = (now) => {
-            const progress = Math.min((now - startedAt) / 320, 1);
-            const current = Math.round(start + (end - start) * progress);
-            if (scoreValue) scoreValue.textContent = current;
-            if (scoreOrb) scoreOrb.style.background = `conic-gradient(var(--posthog-orange) ${current * 12}deg, var(--border) 0deg)`;
-            if (progress < 1) requestAnimationFrame(animate);
-        };
-        requestAnimationFrame(animate);
-        animatedScore = score;
-
-        const company = scoreInput?.value.trim() || 'This account';
-        let verdict = 'Do not outbound yet';
-        let note = `${company} needs a clearer trigger before it deserves a sequence.`;
-        if (score >= 20) {
-            verdict = 'Tier 1: work today';
-            note = `${company} has enough signal for named-account research and a tailored first touch.`;
-        } else if (score >= 14) {
-            verdict = 'Tier 2: research first';
-            note = `${company} is promising, but the pain hypothesis needs one more proof point.`;
-        } else if (score >= 8) {
-            verdict = 'Watchlist';
-            note = `${company} fits the shape, but the trigger is still too soft.`;
-        }
-        if (scoreVerdict) scoreVerdict.textContent = verdict;
-        if (scoreNote) scoreNote.textContent = note;
-    };
-
-    scoreSignalButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            button.classList.toggle('active');
-            scorePresetButtons.forEach(preset => preset.classList.remove('active'));
-            updateScore();
-        });
-    });
-    scorePresetButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const preset = scorePresets[button.dataset.preset];
-            if (!preset) return;
-            scorePresetButtons.forEach(item => item.classList.toggle('active', item === button));
-            if (scoreInput) scoreInput.value = preset.name;
-            scoreSignalButtons.forEach(signal => {
-                signal.classList.toggle('active', preset.signals.includes(signal.dataset.scoreSignal));
-            });
-            updateScore();
-        });
-    });
-    scoreInput?.addEventListener('input', updateScore);
-    document.querySelector('[data-preset="raycast"]')?.click();
-
-    const emailVariants = {
-        raycast: {
-            safe: {
-                subject: `Subject: Extensions that stick vs. extensions that don't`,
-                body: `Hey [name],<br><br>Raycast's extensions marketplace is growing fast &mdash; but I'd guess the harder question isn't "how many extensions exist" but "which ones actually drive retention vs. get installed and forgotten."<br><br>That's the kind of thing where GA4 or basic event tracking falls apart. You need to connect extension adoption &rarr; activation &rarr; 30-day retention in one view, ideally without building internal tooling to stitch it together.<br><br>PostHog does this natively: product analytics, session replay, and feature flags in one stack. No warehouse stitching required. And since you're EU-based, the data stays in EU.<br><br>Worth 10 minutes to see if this maps to your current setup? If not, genuinely no worries &mdash; happy to just point you at the relevant docs.`
-            },
-            bold: {
-                subject: `Subject: Your extensions graveyard`,
-                body: `Hey [name],<br><br>Raycast probably has a very interesting cemetery: extensions people install once, admire briefly, then never touch again.<br><br>The useful question is which extensions become habits. Not downloads, not marketplace count, actual retention. If that answer lives across product analytics, replay, and a spreadsheet named something like "extension_retention_final_v3", that's exactly the mess PostHog is good at removing.<br><br>Worth a quick look at how extension adoption could map to activation and 30-day retention in one place? If I'm inventing a problem you already solved, I'll take the loss.`
-            }
-        },
-        mintlify: {
-            safe: {
-                subject: `Subject: AI search &mdash; curiosity or retention driver?`,
-                body: `Hey [name],<br><br>Congrats on the growth &mdash; $10M ARR at Mintlify's pace is real. Quick hypothesis for you:<br><br>You've launched AI search and AI chat on top of docs. I'd bet a lot of users try them. The harder question is whether those features drive meaningful retention or just first-session curiosity. That gap between "tried it" and "can't live without it" is usually where the AI roadmap bets go wrong.<br><br>PostHog lets you track that loop natively &mdash; feature adoption &rarr; retention cohorts &rarr; A/B test the next iteration &mdash; without stitching analytics and experimentation tools together.<br><br>15 minutes to see if this is relevant? If the timing's off, I'll disappear gracefully.`
-            },
-            bold: {
-                subject: `Subject: Is AI chat helping or just looking expensive?`,
-                body: `Hey [name],<br><br>Mintlify's AI features look like the kind of thing everyone tries once because, well, it's AI. The dangerous part is mistaking curiosity for retention.<br><br>If AI search gets demo applause but doesn't change repeat usage, that's an expensive illusion. PostHog would let you see the loop clearly: who tries it, who comes back, what they searched, and whether it moves activation or expansion.<br><br>Worth pressure-testing that before the AI roadmap gets louder?`
-            }
-        },
-        tonic: {
-            safe: {
-                subject: `Subject: Cross-product adoption at Tonic`,
-                body: `Hey [name],<br><br>Noticed Tonic has Structural, Textual, and Ephemeral alongside a pretty clear team-scaling push. My guess is the next hard question is cross-product visibility: which product lands the account, which expands it, and where users drop between workflows.<br><br>PostHog can track that journey across products in one view &mdash; product analytics, replay, and feature flags together &mdash; without pushing every question through a warehouse request.<br><br>Worth comparing that to how you're measuring adoption today?`
-            },
-            bold: {
-                subject: `Subject: Which Tonic product actually lands the deal?`,
-                body: `Hey [name],<br><br>Weird question: do you know which of Structural, Textual, and Ephemeral is the actual land product vs. which gets brought up in expansion conversations? Because I'd bet $20 the answer is "we think we know but haven't verified it with data."<br><br>I only ask because at 3x team growth, the cost of getting that wrong is hiring for the wrong product line. PostHog tracks cross-product adoption in one view &mdash; no warehouse required.<br><br>Could be totally off base. If so, tell me and I'll owe you that $20.`
-            }
-        }
-    };
-
-    document.querySelectorAll('[data-ab-email]').forEach(card => {
-        const key = card.dataset.abEmail;
-        const setTone = (tone) => {
-            const variant = emailVariants[key]?.[tone];
-            if (!variant) return;
-            card.querySelector('.demo-email-subject').innerHTML = variant.subject;
-            card.querySelector('.demo-email-text').innerHTML = variant.body;
-            card.querySelectorAll('[data-tone]').forEach(button => {
-                button.classList.toggle('active', button.dataset.tone === tone);
-            });
-        };
-        card.querySelectorAll('[data-tone]').forEach(button => {
-            button.addEventListener('click', () => setTone(button.dataset.tone));
-        });
-        setTone('safe');
-    });
-
-    // Smooth scroll
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener('click', function(e) {
-            e.preventDefault();
-            const target = document.querySelector(this.getAttribute('href'));
-            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        });
-    });
-
-    // Active nav link on scroll
-    const sections = document.querySelectorAll('.page, .hero, .about-section');
-    const navLinks = document.querySelectorAll('.nav-links a');
-    const updateScrollState = () => {
-        const scrollable = document.documentElement.scrollHeight - window.innerHeight;
-        const progress = scrollable > 0 ? (window.scrollY / scrollable) * 100 : 0;
-        if (scrollProgressBar) scrollProgressBar.style.width = `${Math.min(progress, 100)}%`;
-        mascot?.classList.toggle('visible', window.scrollY > 360);
-
-        let current = '';
-        sections.forEach(section => {
-            const top = section.offsetTop - 100;
-            if (window.pageYOffset >= top) current = section.getAttribute('id');
-        });
-        navLinks.forEach(link => {
-            link.classList.remove('active');
-            if (link.getAttribute('href') === '#' + current) link.classList.add('active');
-        });
-        chapterDots.forEach(dot => {
-            dot.classList.toggle('active', dot.getAttribute('href') === '#' + current);
-        });
-        if (mascotBubble && mascotLines[current]) mascotBubble.textContent = mascotLines[current];
-    };
-    window.addEventListener('scroll', updateScrollState, { passive: true });
-    updateScrollState();
-
-    const roadmapObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => entry.target.classList.toggle('active', entry.isIntersecting));
-    }, { rootMargin: '-25% 0px -35% 0px', threshold: 0.25 });
-    document.querySelectorAll('.roadmap-item').forEach(item => roadmapObserver.observe(item));
+document.querySelectorAll('.grid, .proof-grid, .metrics').forEach(grid => {
+  [...grid.children].forEach((card, i) => {
+    card.style.transitionDelay = `${i * 0.065}s`;
+    card.classList.add('reveal');
+    observer.observe(card);
+  });
+});
 </script>
-
 </body>
 </html>
